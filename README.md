@@ -138,7 +138,9 @@ flowchart TD
 
 ---
 
-## 🔄 Email Delivery Lifecycle
+---
+
+## 🔄 Email Delivery Lifecycle & Provider Abstraction
 
 ```
 [ POST /api/campaigns (CSV + Timing) ]
@@ -159,11 +161,24 @@ flowchart TD
         ├── If Limit Exceeded: Reschedule to next hour window (Delay = nextWindow - now) -> DB status stays PENDING
         └── If Allowed: Proceed to Step 6
                 ↓
-    6. Dispatch via Nodemailer Pooled SMTP (Ethereal Email)
-        ├── If SMTP Success: Update DB -> SENT (save sentAt, previewUrl)
-        └── If Transient Failure: Retry up to 4x (Exponential backoff 5s) -> DB status stays PENDING
+    6. Email Delivery Layer (Provider Abstraction)
+        ├── Ethereal SMTP (Default / Assignment Compliant): Nodemailer pooled transport + preview URLs
+        └── Resend HTTP (Optional Deployment Adapter): HTTPS API delivery
+                ↓
+    7. Status Resolution:
+        ├── If Success: Update DB -> SENT (save sentAt, previewUrl)
+        ├── If Transient Failure: Retry up to 4x (Exponential backoff 5s) -> DB status stays PENDING
         └── If Retries Exhausted: Update DB -> FAILED (save errorMessage)
 ```
+
+### Email Provider Abstraction Architecture
+
+The application uses an explicit **Email Provider Abstraction** (`IEmailProvider`):
+- **Ethereal SMTP (Default & Assignment-Compliant)**: Uses Nodemailer with SMTP connection pooling (`maxConnections: 3`, `rateLimit: 3/sec`) and test message URL generation. This is the official testing provider required for evaluating the hiring assessment.
+- **Resend HTTP (Optional Cloud Adapter)**: Configurable via `EMAIL_PROVIDER=resend` and `RESEND_API_KEY=...` for cloud deployments where outbound SMTP ports (587/465) may be restricted.
+
+> **Important**: Ethereal SMTP remains the default provider for evaluating this assignment. The provider abstraction exists to allow deployment-specific adapters without altering scheduling, persistence, rate limiting, worker concurrency, or idempotency logic.
+
 
 ---
 
@@ -310,19 +325,50 @@ npm run dev
 
 ---
 
+---
+
+## ☁️ Cloud Deployment Guide (Vercel & Render)
+
+### 1. Database & Queue (Managed PostgreSQL & Redis)
+- **PostgreSQL**: Create a managed PostgreSQL database (e.g. Render PostgreSQL, Supabase, Neon) and copy the connection string (`DATABASE_URL`).
+- **Redis**: Create a managed Redis instance (e.g. Render Redis, Upstash, Redis Cloud) and copy the connection string (`REDIS_URL`).
+
+### 2. Backend API Deployment (Render Web Service)
+- **Root Directory**: `backend`
+- **Build Command**: `npm install && npm run build && npx prisma db push`
+- **Start Command**: `npm start` (runs `node dist/index.js`)
+- **Health Check Path**: `/health`
+
+### 3. Dedicated Worker Deployment (Render Background Worker)
+- **Root Directory**: `backend`
+- **Build Command**: `npm install && npm run build`
+- **Start Command**: `npm run worker:prod` (runs `node dist/workers/email.worker.js`)
+
+### 4. Frontend Deployment (Vercel)
+- **Root Directory**: `frontend`
+- **Framework Preset**: `Vite`
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Environment Variables**:
+  - `VITE_CLERK_PUBLISHABLE_KEY`: `pk_test_...`
+  - `VITE_API_URL`: `https://your-render-backend.onrender.com`
+
+---
+
 ## 🔒 Environment Configuration
 
 | Variable | Scope | Description |
 | :--- | :--- | :--- |
 | `PORT` | Backend | Port on which Express API listens (default: `5000`) |
-| `DATABASE_URL` | Backend | PostgreSQL connection string for Prisma ORM |
-| `REDIS_URL` | Backend | Redis connection string for BullMQ and Lua rate limiting |
-| `WORKER_CONCURRENCY` | Backend | Number of parallel worker threads (default: `5`) |
-| `RATE_LIMIT_WINDOW_MS` | Backend | Rate limiting window size (default: `3600000` ms / 1 hour) |
+| `DATABASE_URL` | Backend / Worker | PostgreSQL connection string for Prisma ORM |
+| `REDIS_URL` | Backend / Worker | Redis connection string for BullMQ and Lua rate limiting |
+| `FRONTEND_URL` | Backend | Allowed CORS origin (e.g. `https://your-app.vercel.app`) |
+| `WORKER_CONCURRENCY` | Backend / Worker | Number of parallel worker threads (default: `5`) |
+| `RATE_LIMIT_WINDOW_MS` | Backend / Worker | Rate limiting window size (default: `3600000` ms / 1 hour) |
 | `CLERK_SECRET_KEY` | Backend | Clerk backend API secret key for JWT verification |
 | `CLERK_PUBLISHABLE_KEY`| Frontend / Backend | Clerk public publishable key |
-| `SMTP_HOST` / `PORT` | Backend | SMTP host (e.g. `smtp.ethereal.email`, `587`) |
-| `SMTP_USER` / `PASS` | Backend | Ethereal SMTP credentials (auto-generated if left blank) |
+| `SMTP_HOST` / `PORT` | Worker | SMTP host (e.g. `smtp.ethereal.email`, `587`) |
+| `SMTP_USER` / `PASS` | Worker | Ethereal SMTP credentials (auto-generated if left blank) |
 | `VITE_API_URL` | Frontend | Backend API base URL (default: `http://localhost:5000`) |
 
 ---

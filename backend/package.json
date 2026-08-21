@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "worker": "tsx src/workers/email.worker.ts",
-    "build": "tsc",
+    "worker:prod": "node dist/workers/email.worker.js",
+    "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
@@ -20,6 +21,7 @@
     "express": "^4.21.1",
     "ioredis": "^5.4.1",
     "nodemailer": "^6.9.15",
+    "prisma": "^5.22.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -27,7 +29,6 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.9.0",
     "@types/nodemailer": "^6.4.16",
-    "prisma": "^5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }

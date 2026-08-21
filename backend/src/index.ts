@@ -10,7 +10,16 @@ import { authRouter } from './routes/auth.routes';
 
 const app = express();
 
-app.use(cors());
+// Configurable CORS supporting Vercel deployments, custom frontend domains, and localhost
+const allowedOrigins = config.frontendUrl
+  ? [config.frontendUrl, /^https:\/\/.*\.vercel\.app$/, 'http://localhost:5173', 'http://localhost:3000']
+  : true;
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 app.use(express.json());
 
 // Clerk middleware — processes session tokens on every request.

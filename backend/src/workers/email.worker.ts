@@ -14,7 +14,7 @@ console.log(`⚡ Worker Concurrency:  ${config.workerConcurrency}`);
 console.log(`⚡ Rate Limit Window:   ${config.rateLimitWindowMs}ms (${config.rateLimitWindowMs / 3600000} hr)`);
 console.log(`⚡ Rate Limit Scope:    PER-SENDER (shared across campaigns by same sender)`);
 console.log(`⚡ Redis:               ${config.redisUrl}`);
-console.log(`⚡ SMTP Host:           ${config.smtp.host}:${config.smtp.port}`);
+console.log(`⚡ Email Provider:      ${config.emailProvider.toUpperCase()} (${config.emailProvider === 'resend' ? 'Resend HTTP API' : `${config.smtp.host}:${config.smtp.port}`})`);
 console.log('====================================================');
 
 const workerRedisClient = createRedisClient();
