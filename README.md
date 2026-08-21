@@ -322,16 +322,13 @@ npm run dev
 - **PostgreSQL**: Create a managed PostgreSQL database (e.g. Render PostgreSQL, Supabase, Neon) and copy the connection string (`DATABASE_URL`).
 - **Redis**: Create a managed Redis instance (e.g. Render Redis, Upstash, Redis Cloud) and copy the connection string (`REDIS_URL`).
 
-### 2. Backend API Deployment (Render Web Service)
+### 2. Backend Deployment (Render Web Service)
 - **Root Directory**: `backend`
 - **Build Command**: `npm install && npm run build && npx prisma db push`
-- **Start Command**: `npm start` (runs `node dist/index.js`)
+- **Start Command**: `npm start` (runs `node dist/index.js` — automatically executes both the **Express REST API** and the **BullMQ Email Worker** concurrently in a single service process, ideal for Render Free Tier)
 - **Health Check Path**: `/health`
 
-### 3. Dedicated Worker Deployment (Render Background Worker)
-- **Root Directory**: `backend`
-- **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm run worker:prod` (runs `node dist/workers/email.worker.js`)
+> **Note**: For scaled enterprise deployments with dedicated worker instances, the worker can also be run independently via `npm run worker:prod` (runs `node dist/workers/email.worker.js`).
 
 ### 4. Frontend Deployment (Vercel)
 - **Root Directory**: `frontend`

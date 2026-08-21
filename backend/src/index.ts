@@ -8,6 +8,9 @@ import { queueRouter } from './routes/queue.routes';
 import { emailRouter } from './routes/email.routes';
 import { authRouter } from './routes/auth.routes';
 
+// Run BullMQ email worker alongside Express in the same process (Render Free Tier Web Service support)
+import './workers/email.worker';
+
 const app = express();
 
 // Configurable CORS supporting Vercel deployments, custom frontend domains, and localhost
