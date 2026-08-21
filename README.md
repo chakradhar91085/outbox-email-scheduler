@@ -337,7 +337,7 @@ npm run dev
 - **Output Directory**: `dist`
 - **Environment Variables**:
   - `VITE_CLERK_PUBLISHABLE_KEY`: `pk_test_...`
-  - `VITE_API_URL`: `https://your-render-backend.onrender.com`
+  - `VITE_API_URL`: `https://outbox-email-scheduler-8ajn.onrender.com`
 
 ---
 
