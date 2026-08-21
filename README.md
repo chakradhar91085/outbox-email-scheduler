@@ -71,7 +71,7 @@ At ReachInbox, reliable email dispatching at scale is mission-critical. This app
 ```mermaid
 flowchart TD
     subgraph Client ["Client Layer (React + Vite)"]
-        Visitor(["Visitor / Operator"])
+        Visitor["Visitor / Operator"]
         LP["Public Landing Page (/)"]
         Auth["Clerk Google OAuth (/sign-in)"]
         Dash["Interactive Dashboard (/dashboard)"]
@@ -90,35 +90,36 @@ flowchart TD
     end
 
     subgraph WorkerLayer ["Execution Layer (Dedicated Process)"]
-        Worker["Dedicated Email Worker (:npm run worker)"]
+        Worker["Dedicated Email Worker (npm run worker)"]
         RateLimiter["Redis Lua Token-Bucket Rate Limiter"]
         EmailService["EmailService Facade"]
         Factory["EmailProviderFactory"]
         Ethereal["EtherealEmailProvider (Default SMTP)"]
         Resend["ResendEmailProvider (Optional HTTP)"]
+        EtherealServer["Ethereal SMTP Server"]
     end
 
     Visitor --> LP
-    LP -->|Sign In| Auth
-    Auth -->|JWT Session| Dash
-    Dash -->|REST API Calls| API
+    LP -->|"Sign In"| Auth
+    Auth -->|"JWT Session"| Dash
+    Dash -->|"REST API Calls"| API
     API --> AuthMid
     AuthMid --> CampService
-    CampService -->|Persist Campaign & Emails| PG
-    CampService -->|Atomic Bulk Enqueue| QueueService
-    QueueService -->|Delayed Jobs| Redis
+    CampService -->|"Persist Campaign & Emails"| PG
+    CampService -->|"Atomic Bulk Enqueue"| QueueService
+    QueueService -->|"Delayed Jobs"| Redis
 
-    Worker -->|Consume Due Jobs| Redis
-    Worker -->|Check Per-Sender Quota| RateLimiter
-    RateLimiter -->|Atomic Lua Check| Redis
-    Worker -->|If Limit Exceeded: Reschedule| Redis
-    Worker -->|If Allowed: Dispatch Mail| EmailService
+    Worker -->|"Consume Due Jobs"| Redis
+    Worker -->|"Check Per-Sender Quota"| RateLimiter
+    RateLimiter -->|"Atomic Lua Check"| Redis
+    Worker -->|"If Limit Exceeded: Reschedule"| Redis
+    Worker -->|"If Allowed: Dispatch Mail"| EmailService
     EmailService --> Factory
-    Factory -->|EMAIL_PROVIDER=ethereal| Ethereal
-    Factory -.->|EMAIL_PROVIDER=resend| Resend
-    Ethereal -->|Pooled SMTP TLS| EtherealServer["Ethereal SMTP Server"]
-    Worker -->|Update Status: SENT / FAILED| PG
-    Dash -.->|Live Polling (3s)| API
+    Factory -->|"EMAIL_PROVIDER=ethereal"| Ethereal
+    Factory -->|"EMAIL_PROVIDER=resend"| Resend
+    Ethereal -->|"Pooled SMTP TLS"| EtherealServer
+    Worker -->|"Update Status: SENT / FAILED"| PG
+    Dash -->|"Live Polling (3s)"| API
 ```
 
 ---
