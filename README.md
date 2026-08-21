@@ -9,24 +9,27 @@ Designed for high-throughput, reliable scheduling and sending of cold outreach e
 ## 📑 Table of Contents
 
 - [Overview](#-overview)
-- [System Architecture](#-system-architecture)
-- [Core Implemented Features](#-core-implemented-features)
-- [Tech Stack](#-tech-stack)
-- [Email Delivery Lifecycle](#-email-delivery-lifecycle)
-- [Project Structure](#-project-structure)
-- [Local Setup & Quick Start](#-local-setup--quick-start)
-- [Environment Configuration](#-environment-configuration)
-- [Concurrency, Rate Limiting & Reliability](#-concurrency-rate-limiting--reliability)
-- [Persistence & Restart Safety](#-persistence--restart-safety)
-- [API Reference & Health Endpoints](#-api-reference--health-endpoints)
-- [Testing & Verification](#-testing--verification)
-- [Assumptions & Design Trade-offs](#-assumptions--design-trade-offs)
+- [Implemented Features](#-implemented-features)
+  - [Backend Features](#backend-features)
+  - [Frontend Features](#frontend-features)
+- [Architecture Overview](#-architecture-overview)
+- [How Scheduling Works](#-how-scheduling-works)
+- [Persistence Across Restart](#-persistence-across-restart)
+- [Rate Limiting and Concurrency](#-rate-limiting-and-concurrency)
+- [Prerequisites](#-prerequisites)
+- [Environment Variables](#-environment-variables)
+- [Ethereal Email Setup](#-ethereal-email-setup)
+- [Running Locally](#-running-locally)
+- [Cloud Deployment Guide (Vercel & Render)](#-cloud-deployment-guide-vercel--render)
+- [Demo Instructions](#-demo-instructions)
+- [Demo Video](#-demo-video)
+- [Assumptions, Shortcuts, and Trade-offs](#-assumptions-shortcuts-and-trade-offs)
 
 ---
 
 ## 🎯 Overview
 
-At ReachInbox, reliable email dispatching at scale is mission-critical. This service solves the challenges of cold outreach scheduling:
+At ReachInbox, reliable email dispatching at scale is mission-critical. This application addresses the core challenges of cold outreach job scheduling:
 
 1. **Zero Cron Dependency**: All scheduling is handled natively via **BullMQ delayed jobs** backed by **Redis** persistence.
 2. **Survives Infrastructure Restarts**: When the server or worker crashes and restarts, future scheduled emails still fire at their exact timestamps without losing state or duplicating sends.
@@ -37,12 +40,38 @@ At ReachInbox, reliable email dispatching at scale is mission-critical. This ser
 
 ---
 
-## 🏗️ System Architecture
+## ✨ Implemented Features
+
+### Backend Features
+- **Scheduler**: BullMQ delayed jobs with millisecond-precision timing (`delay = scheduledAt - now`), completely free of cron polling.
+- **Relational Persistence**: PostgreSQL schema managed via Prisma ORM with relational models for `Campaign` and `Email` records.
+- **Per-Sender Rate Limiting**: Atomic token-bucket algorithm executed in Redis via Lua scripts, partitioning quotas per sender address across hourly windows.
+- **Worker Concurrency**: Dedicated worker daemon supporting configurable parallel execution threads (`WORKER_CONCURRENCY=5`).
+- **Retry Handling & Backoff**: Automatic exponential backoff (`attempts: 4`, `5s -> 10s -> 20s`) for transient SMTP failures.
+- **Bulk Queue Processing**: High-throughput `emailQueue.addBulk()` pipeline scheduling 1,000+ recipients in a single atomic database & queue transaction.
+- **Email Provider Abstraction**: Pluggable `IEmailProvider` architecture with **Ethereal SMTP** as the required default, and an optional HTTP adapter for cloud environments.
+
+### Frontend Features
+- **Authentication / Login**: Seamless Google OAuth login powered by Clerk with JWT session tokens securing backend API calls.
+- **Public Landing Page (`/`)**: Canvas 2D particle sphere, dynamic rotating headline, interactive process diagrams, live telemetry, and bidirectional tech stack marquees.
+- **Interactive Dashboard (`/dashboard`)**: KPI metric cards, recent campaign progress, real-time BullMQ queue strip, and quick navigation.
+- **Campaign Creation Wizard**:
+  - Manual multiline email input with instant count validation.
+  - CSV Drag-and-Drop parser with automatic column mapping (`email`, `recipient`, `mail`), regex email verification, and deduplication.
+  - Real-time schedule timing calculator projecting completion time ($T_{\text{end}}$) based on lead count, start time, and stagger delay.
+- **Email Delivery Logs & Audit**: Paginated delivery table with status filtering (`ALL`, `PENDING`, `PROCESSING`, `SENT`, `FAILED`), search, clickable Ethereal preview URLs, and full error tooltips.
+- **Campaign Inspector Modal**: Detailed audit timeline displaying sent/pending/failed progress bars and per-recipient status history.
+- **BullMQ Queue Monitor**: Live Redis job counters (`Active`, `Delayed`, `Waiting`, `Completed`, `Failed`, `Concurrency`).
+- **Live Frontend Polling**: 3-second automatic UI refetching for active campaigns that cleanly terminates when all emails reach terminal states.
+
+---
+
+## 🏗️ Architecture Overview
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Layer"]
-        User(["Visitor / Operator"])
+    subgraph Client ["Client Layer (React + Vite)"]
+        Visitor(["Visitor / Operator"])
         LP["Public Landing Page (/)"]
         Auth["Clerk Google OAuth (/sign-in)"]
         Dash["Interactive Dashboard (/dashboard)"]
@@ -55,7 +84,7 @@ flowchart TD
         QueueService["BullMQ Queue Service (addBulk)"]
     end
 
-    subgraph Data ["State & Storage Layer"]
+    subgraph Storage ["State & Storage Layer"]
         PG[("PostgreSQL 16\n(Prisma ORM)")]
         Redis[("Redis 7\n(BullMQ Delayed Jobs + Lua Rate Limits)")]
     end
@@ -63,236 +92,201 @@ flowchart TD
     subgraph WorkerLayer ["Execution Layer (Dedicated Process)"]
         Worker["Dedicated Email Worker (:npm run worker)"]
         RateLimiter["Redis Lua Token-Bucket Rate Limiter"]
-        SMTPPool["Nodemailer Pooled Transport"]
-        Ethereal["Ethereal SMTP Server"]
+        EmailService["EmailService Facade"]
+        Factory["EmailProviderFactory"]
+        Ethereal["EtherealEmailProvider (Default SMTP)"]
+        Resend["ResendEmailProvider (Optional HTTP)"]
     end
 
-    User --> LP
+    Visitor --> LP
     LP -->|Sign In| Auth
-    Auth -->|JWT Token| Dash
-    Dash -->|REST API Requests| API
+    Auth -->|JWT Session| Dash
+    Dash -->|REST API Calls| API
     API --> AuthMid
     AuthMid --> CampService
     CampService -->|Persist Campaign & Emails| PG
     CampService -->|Atomic Bulk Enqueue| QueueService
     QueueService -->|Delayed Jobs| Redis
 
-    Worker -->|Consume Delayed Jobs| Redis
+    Worker -->|Consume Due Jobs| Redis
     Worker -->|Check Per-Sender Quota| RateLimiter
     RateLimiter -->|Atomic Lua Check| Redis
-    Worker -->|If Quota Exceeded| Redis
-    Worker -->|If Allowed: Send Mail| SMTPPool
-    SMTPPool -->|SMTP TLS| Ethereal
+    Worker -->|If Limit Exceeded: Reschedule| Redis
+    Worker -->|If Allowed: Dispatch Mail| EmailService
+    EmailService --> Factory
+    Factory -->|EMAIL_PROVIDER=ethereal| Ethereal
+    Factory -.->|EMAIL_PROVIDER=resend| Resend
+    Ethereal -->|Pooled SMTP TLS| EtherealServer["Ethereal SMTP Server"]
     Worker -->|Update Status: SENT / FAILED| PG
     Dash -.->|Live Polling (3s)| API
 ```
 
 ---
 
-## ✨ Core Implemented Features
-
-### 1. Public Landing Page & Experience
-- **Hero Particle Engine**: Pure 2D Canvas animated sphere/wave with rotating typography (`The engine to schedule / to scale / to dispatch / to deliver`).
-- **Interactive Capabilities & Process**: SVG-animated feature cards and interactive 4-step execution lifecycle with code terminal syntax reveal.
-- **Real-Time Telemetry & Tech Marquees**: Live synchronized clock, split-border animated counters, and bidirectional infinite tech stack marquee.
-
-### 2. Campaign Creation & Audience Parsing
-- **CSV Drag-and-Drop Parser**: Automatic column discovery (`email`, `recipient`, `mail`), regex email validation, and deduplication.
-- **Manual Multiline Input**: Paste raw email lists with instant validity counting.
-- **Dynamic Schedule Math**: Real-time calculator projecting total duration in minutes/seconds and estimated completion time ($T_{\text{end}}$).
-- **Multi-Sender Identity**: Flexible sender profiles (e.g. `ReachInbox Sales <sales@reachinbox.ai>`).
-
-### 3. Queue Management & Scheduling Engine
-- **Delayed BullMQ Jobs**: Enqueued via `queue.addBulk()` with millisecond-precision delays (`delay = scheduledAt - now`).
-- **Configurable Stagger Delay**: Custom per-email spacing (e.g. 5s) to prevent spam flags.
-- **Per-Sender Hourly Limits**: Configurable quota (e.g. 100/hr) per sender email address.
-
-### 4. Background Worker & SMTP Delivery
-- **Dedicated Worker Process**: Runs in a separate process (`npm run worker`) isolated from the HTTP server.
-- **Configurable Concurrency**: Processes up to $N$ emails in parallel (default: `5`).
-- **Nodemailer Pooled Transport**: Connection pooling with burst throttling (`maxConnections: 3`, `rateLimit: 3/sec`) preventing SMTP provider rate limits.
-- **Exponential Retry Backoff**: Failed transient dispatches retry up to 4 times with exponential delay (`5s -> 10s -> 20s`).
-- **Idempotency**: Every BullMQ job uses `jobId = Email.id`, preventing duplicate dispatches.
-
-### 5. Interactive Dashboard & Monitoring
-- **Live Polling (3s / 4s)**: Automatic UI updates when viewing active campaigns, terminating cleanly when all emails reach terminal states (`SENT` or `FAILED`).
-- **Status Filtering & Search**: Filter by `ALL`, `PENDING`, `PROCESSING`, `SENT`, `FAILED` with live pagination and search.
-- **Native Browser Tooltips**: Full error diagnostics displayed on hover (`title={email.errorMessage}`).
-- **BullMQ Telemetry Dashboard**: Live Redis job counts (`Delayed`, `Active`, `Waiting`, `Completed`, `Failed`, `Concurrency`).
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, Vite 5, TypeScript | Single-page application and fast HMR |
-| **Styling** | Tailwind CSS, Lucide Icons | Responsive modern dark theme and icons |
-| **Authentication** | Clerk React, Google OAuth | Secure JWT session management |
-| **Backend** | Node.js, Express, TypeScript | RESTful API server with Zod validation |
-| **Database** | PostgreSQL 16, Prisma ORM | Relational persistence with ACID safety |
-| **Queue & Store**| BullMQ 5, Redis 7 (ioredis) | Persistent delayed queue & Lua rate limiting |
-| **Worker** | Dedicated BullMQ Worker | Background asynchronous email processor |
-| **Email Testing**| Nodemailer, Ethereal SMTP | SMTP pooled transport & live web previews |
-| **Infra** | Docker Compose | Containerized PostgreSQL and Redis services |
-
----
-
----
-
-## 🔄 Email Delivery Lifecycle & Provider Abstraction
+## 🔄 How Scheduling Works
 
 ```
-[ POST /api/campaigns (CSV + Timing) ]
-                ↓
-    1. Validate Payload (Zod)
-                ↓
-    2. Persist in PostgreSQL (Campaign + N Email records with status: PENDING)
-                ↓
-    3. Enqueue BullMQ Delayed Jobs in Redis (delay = scheduledAt - now, jobId = Email.id)
-                ↓
-[ Redis BullMQ Delayed Queue ] (Timer expires at scheduledAt)
-                ↓
-[ Dedicated Worker Process ] (Picks up active job)
-                ↓
-    4. Update DB status -> PROCESSING
-                ↓
-    5. Evaluate Per-Sender Hourly Limit (Atomic Redis Lua Script)
-        ├── If Limit Exceeded: Reschedule to next hour window (Delay = nextWindow - now) -> DB status stays PENDING
-        └── If Allowed: Proceed to Step 6
-                ↓
-    6. Email Delivery Layer (Provider Abstraction)
-        ├── Ethereal SMTP (Default / Assignment Compliant): Nodemailer pooled transport + preview URLs
-        └── Resend HTTP (Optional Deployment Adapter): HTTPS API delivery
-                ↓
-    7. Status Resolution:
-        ├── If Success: Update DB -> SENT (save sentAt, previewUrl)
-        ├── If Transient Failure: Retry up to 4x (Exponential backoff 5s) -> DB status stays PENDING
-        └── If Retries Exhausted: Update DB -> FAILED (save errorMessage)
-```
-
-### Email Provider Abstraction Architecture
-
-The application uses an explicit **Email Provider Abstraction** (`IEmailProvider`):
-- **Ethereal SMTP (Default & Assignment-Compliant)**: Uses Nodemailer with SMTP connection pooling (`maxConnections: 3`, `rateLimit: 3/sec`) and test message URL generation. This is the official testing provider required for evaluating the hiring assessment.
-- **Resend HTTP (Optional Cloud Adapter)**: Configurable via `EMAIL_PROVIDER=resend` and `RESEND_API_KEY=...` for cloud deployments where outbound SMTP ports (587/465) may be restricted.
-
-> **Important**: Ethereal SMTP remains the default provider for evaluating this assignment. The provider abstraction exists to allow deployment-specific adapters without altering scheduling, persistence, rate limiting, worker concurrency, or idempotency logic.
-
-
----
-
-## 📁 Project Structure
-
-```
-outbox-email-scheduler/
-├── docker-compose.yml              # PostgreSQL 16 & Redis 7 Docker setup
-├── .env.example                    # Root environment variable template
-├── README.md                       # Public project documentation
-├── backend/
-│   ├── prisma/
-│   │   └── schema.prisma           # Prisma PostgreSQL schema (Campaign, Email)
-│   ├── src/
-│   │   ├── config/index.ts         # Environment validation and configurations
-│   │   ├── controllers/            # Express request controllers (campaign, email)
-│   │   ├── lib/                    # Database (Prisma) and Redis clients
-│   │   ├── middleware/             # Clerk JWT auth & error middlewares
-│   │   ├── queues/                 # BullMQ queue definition & bulk enqueue logic
-│   │   ├── routes/                 # Express API routes (auth, campaign, email, queue, health)
-│   │   ├── scripts/                # Automated verification and load testing scripts
-│   │   ├── services/               # Core business services (campaign, email, rate-limiter)
-│   │   ├── workers/                # Dedicated BullMQ email worker daemon
-│   │   └── index.ts                # Express server entry point
-│   ├── package.json
-│   └── tsconfig.json
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   │   ├── campaign/           # Campaign wizard, lists, and audit details modal
-    │   │   ├── common/             # Stat cards, status badges, spinners, error alerts
-    │   │   ├── dashboard/          # KPI metrics, recent campaigns, queue strip
-    │   │   ├── emails/             # Delivery logs, status filter tabs, pagination
-    │   │   ├── landing/            # Public animated landing page components
-    │   │   ├── layout/             # Application shell (Header, Sidebar, AppLayout)
-    │   │   └── queue/              # BullMQ queue telemetry monitor
-    │   ├── lib/utils.ts            # Class merging utilities (clsx + tailwind-merge)
-    │   ├── services/api.ts         # Centralized API client with Clerk token support
-    │   ├── types/index.ts          # TypeScript interfaces and data models
-    │   ├── App.tsx                 # Main routing (Landing -> Clerk Auth -> Dashboard)
-    │   └── main.tsx                # React DOM root with Clerk Provider
-    ├── package.json
-    ├── tailwind.config.js
-    └── vite.config.ts
+[ User Submits Campaign via UI / API ]
+                 ↓
+    1. Express Controller validates payload schema with Zod.
+                 ↓
+    2. CampaignService persists Campaign and N Email records into PostgreSQL with status = PENDING.
+                 ↓
+    3. CampaignService calculates per-email scheduled timestamp:
+       scheduledAt = startTime + (index * delaySeconds * 1000)
+                 ↓
+    4. Enqueues all jobs atomically into BullMQ via emailQueue.addBulk() with:
+       - delay = scheduledAt - Date.now()
+       - jobId = email.id (ensures strict idempotency)
+                 ↓
+[ Redis BullMQ Delayed Sorted Set ] (bull:email-sending:delayed)
+                 ↓
+[ Timestamp Reached: Job transitions from Delayed -> Waiting ]
+                 ↓
+[ Dedicated BullMQ Worker Process ] (Consumes job with active concurrency slot)
+                 ↓
+    5. Updates PostgreSQL email status -> PROCESSING.
+                 ↓
+    6. Executes Atomic Redis Lua script to check per-sender hourly quota.
+       ├── If Limit Exceeded: Reschedules job to next hour window (+delayUntilResetMs) -> status remains PENDING.
+       └── If Quota Available: Consumes token and proceeds.
+                 ↓
+    7. Dispatches email via Nodemailer Pooled SMTP to Ethereal Email.
+       ├── Success: Updates DB status -> SENT (stores sentAt and previewUrl).
+       └── Failure: BullMQ retries up to 4x with exponential backoff (5s, 10s, 20s).
+           If all 4 retries fail -> DB status marked FAILED (stores errorMessage).
 ```
 
 ---
 
-## 🚀 Local Setup & Quick Start
+## 🛡️ Persistence Across Restart
 
-### Prerequisites
-- **Node.js**: `v18+` or `v20+`
-- **Docker & Docker Compose**: Installed and running
+The system is architected for **zero in-memory state loss** across server or worker crashes:
+
+1. **PostgreSQL Relational State**: Every email record is persisted to disk upon campaign creation. The state (`PENDING`, `PROCESSING`, `SENT`, `FAILED`) is permanently tracked in the relational database.
+2. **Redis BullMQ Delayed Sets**: BullMQ serializes delayed jobs into Redis sorted sets (`zset`) with the scheduled execution timestamp as the score. Redis persists this data structure to disk (RDB/AOF).
+3. **Server Crash / Restart Scenario**: If the Express API server crashes or restarts, all existing scheduled emails remain in Redis and will execute normally.
+4. **Worker Crash / Restart Scenario**: If the worker daemon is stopped (e.g. during deployment or unexpected termination) and restarted:
+   - Any job scheduled for the future remains in the Redis delayed set and will fire at its exact timestamp.
+   - Any job whose scheduled time passed while the worker was offline is picked up immediately upon worker restart as an overdue job and processed safely.
+5. **Idempotency Protection**: BullMQ jobs are assigned an explicit `jobId = email.id`. Even if an enqueue operation is re-attempted, BullMQ deduplicates the job key, preventing duplicate sends. Additionally, the worker performs a status check (`if (email.status === SENT) return;`) before dispatching SMTP traffic.
+
+---
+
+## ⚡ Rate Limiting and Concurrency
+
+### 1. Application-Level Per-Sender Rate Limiting (Redis Lua)
+- Rate limiting is enforced **per sender email address** across all active campaigns created by that sender.
+- The state is partitioned into 1-hour window buckets: `ratelimit:sender:{normalizedEmail}:{windowTimestamp}`.
+- Evaluation and token increments are executed atomically in a single Redis round-trip via a custom Lua script:
+  ```lua
+  local current = redis.call('GET', KEYS[1])
+  if current and tonumber(current) >= tonumber(ARGV[1]) then
+      return 0 -- Limit exceeded
+  else
+      local new_val = redis.call('INCR', KEYS[1])
+      if new_val == 1 then
+          redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
+      end
+      return 1 -- Allowed
+  end
+  ```
+- **Zero Dropped Jobs**: When a sender hits their limit (e.g. 100/hr), jobs are **not failed**. The worker calculates the exact millisecond delay until the next hour window (`delayUntilResetMs`) and re-enqueues the job with that delay, keeping the email in `PENDING` status.
+
+### 2. Dedicated Worker Concurrency
+- Configured via `WORKER_CONCURRENCY=5` in `backend/src/workers/email.worker.ts`.
+- BullMQ spawns 5 parallel asynchronous job consumers within the dedicated worker process without blocking the Node.js event loop.
+
+### 3. SMTP Transport-Level Pooling & Burst Throttling
+- Nodemailer is configured with connection pooling (`pool: true`, `maxConnections: 3`, `maxMessages: 100`, `rateDelta: 1000`, `rateLimit: 3`).
+- This buffers outgoing emails and prevents Ethereal SMTP `429 Too Many Requests` burst errors during high worker concurrency.
+
+---
+
+## 📋 Prerequisites
+
+- **Node.js**: `v18.0.0+` or `v20.0.0+`
+- **Docker & Docker Compose**: Installed and running (for local PostgreSQL & Redis)
 - **npm** or **pnpm**
 
 ---
 
-### Step 1: Clone Repository
-```bash
-git clone https://github.com/chakradhar91085/outbox-email-scheduler.git
-cd outbox-email-scheduler
-```
+## 🔒 Environment Variables
+
+### Backend (`backend/.env`)
+| Variable | Required | Description | Example / Default |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Optional | Express API server listening port | `5000` |
+| `DATABASE_URL` | **Required** | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/email_scheduler?schema=public` |
+| `REDIS_URL` | **Required** | Redis connection string | `redis://localhost:6379` |
+| `FRONTEND_URL` | Optional | Allowed CORS origin | `http://localhost:5173` |
+| `WORKER_CONCURRENCY` | Optional | Worker concurrency threads | `5` |
+| `RATE_LIMIT_WINDOW_MS`| Optional | Rate limit window in milliseconds | `3600000` (1 hour) |
+| `CLERK_PUBLISHABLE_KEY`| **Required** | Clerk public key | `pk_test_...` |
+| `CLERK_SECRET_KEY` | **Required** | Clerk secret key | `sk_test_...` |
+| `EMAIL_PROVIDER` | Optional | Active email provider (`ethereal` / `resend`) | `ethereal` (Default) |
+| `SMTP_HOST` | Optional | Ethereal SMTP host | `smtp.ethereal.email` |
+| `SMTP_PORT` | Optional | Ethereal SMTP port | `587` |
+| `SMTP_SECURE` | Optional | TLS secure flag | `false` |
+| `SMTP_USER` | Optional | Ethereal username (auto-generated if empty)| `your_user@ethereal.email` |
+| `SMTP_PASS` | Optional | Ethereal password (auto-generated if empty)| `your_password` |
+| `SMTP_FROM` | Optional | Default from address | `"ReachInbox Scheduler <noreply@reachinbox.ai>"` |
+| `RESEND_API_KEY` | Optional | Optional Resend API key (if `EMAIL_PROVIDER=resend`)| `re_...` |
+
+### Frontend (`frontend/.env`)
+| Variable | Required | Description | Example / Default |
+| :--- | :--- | :--- | :--- |
+| `VITE_CLERK_PUBLISHABLE_KEY` | **Required** | Clerk publishable key for Google OAuth | `pk_test_...` |
+| `VITE_API_URL` | **Required** | Backend API base URL | `http://localhost:5000` |
 
 ---
 
-### Step 2: Start Infrastructure (PostgreSQL & Redis)
+## 📧 Ethereal Email Setup
+
+> **Important**: **Ethereal SMTP is the default email provider used for assignment evaluation and demonstration.**
+
+### Option A: Automatic Test Account Generation (Zero-Config Default)
+If you leave `SMTP_USER` and `SMTP_PASS` blank in `backend/.env`, the worker automatically creates a new Ethereal test account on startup via `nodemailer.createTestAccount()` and logs the credentials:
+```
+📧 Ethereal Test Account Generated Automatically:
+   User: csxgoopfit2e6l5k@ethereal.email
+   Host: smtp.ethereal.email:587
+```
+
+### Option B: Persistent Ethereal Account (Recommended for Multi-Day Testing)
+To accumulate all sent emails in one permanent test inbox across restarts:
+1. Visit [https://ethereal.email/create](https://ethereal.email/create) to generate a free test account.
+2. Add the generated credentials to `backend/.env`:
+   ```env
+   SMTP_USER=your_username@ethereal.email
+   SMTP_PASS=your_password
+   ```
+3. Keep `EMAIL_PROVIDER=ethereal`.
+4. Inspect sent test emails using the preview URLs logged in the worker console or clickable directly from the Frontend Delivery Logs table.
+
+---
+
+## 🚀 Running Locally
+
+### 1. Clone & Start Infrastructure (PostgreSQL & Redis)
 ```bash
+git clone https://github.com/chakradhar91085/outbox-email-scheduler.git
+cd outbox-email-scheduler
+
+# Start Docker containers
 docker compose up -d
 docker compose ps
 ```
 
----
-
-### Step 3: Configure Environment Variables
-
-**Backend (`backend/.env`)**:
+### 2. Configure Environment Files
 ```bash
 cp backend/.env.example backend/.env
-```
-Fill in the backend `.env` variables:
-```env
-PORT=5000
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/email_scheduler?schema=public"
-REDIS_URL="redis://localhost:6379"
-WORKER_CONCURRENCY=5
-RATE_LIMIT_WINDOW_MS=3600000
-
-# Clerk Authentication Keys
-CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-
-# SMTP Configuration (Auto-generates Ethereal credentials if blank)
-SMTP_HOST=smtp.ethereal.email
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM="ReachInbox Outreach <noreply@reachinbox.ai>"
-```
-
-**Frontend (`frontend/.env`)**:
-```bash
 cp frontend/.env.example frontend/.env
-```
-Fill in the frontend `.env` variables:
-```env
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-VITE_API_URL=http://localhost:5000
+# Add your Clerk credentials to backend/.env and frontend/.env
 ```
 
----
-
-### Step 4: Setup & Start Backend Server
-In your first terminal:
+### 3. Start Backend API Server
+In Terminal 1:
 ```bash
 cd backend
 npm install
@@ -300,30 +294,24 @@ npx prisma generate
 npx prisma db push
 npm run dev
 ```
-> Backend API will be running at: `http://localhost:5000`
+> API running at: `http://localhost:5000`
 
----
-
-### Step 5: Start Dedicated Background Worker
-In a second terminal:
+### 4. Start Dedicated Email Worker
+In Terminal 2:
 ```bash
 cd backend
 npm run worker
 ```
-> Dedicated BullMQ worker will start listening to the `email-sending` queue with `5` concurrent threads.
+> Worker running with `5` concurrent threads.
 
----
-
-### Step 6: Setup & Start Frontend Application
-In a third terminal:
+### 5. Start Frontend Application
+In Terminal 3:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-> Frontend application will be running at: `http://localhost:5173`
-
----
+> Frontend running at: `http://localhost:5173`
 
 ---
 
@@ -355,126 +343,53 @@ npm run dev
 
 ---
 
-## 🔒 Environment Configuration
+## 📹 Demo Instructions
 
-| Variable | Scope | Description |
-| :--- | :--- | :--- |
-| `PORT` | Backend | Port on which Express API listens (default: `5000`) |
-| `DATABASE_URL` | Backend / Worker | PostgreSQL connection string for Prisma ORM |
-| `REDIS_URL` | Backend / Worker | Redis connection string for BullMQ and Lua rate limiting |
-| `FRONTEND_URL` | Backend | Allowed CORS origin (e.g. `https://your-app.vercel.app`) |
-| `WORKER_CONCURRENCY` | Backend / Worker | Number of parallel worker threads (default: `5`) |
-| `RATE_LIMIT_WINDOW_MS` | Backend / Worker | Rate limiting window size (default: `3600000` ms / 1 hour) |
-| `CLERK_SECRET_KEY` | Backend | Clerk backend API secret key for JWT verification |
-| `CLERK_PUBLISHABLE_KEY`| Frontend / Backend | Clerk public publishable key |
-| `SMTP_HOST` / `PORT` | Worker | SMTP host (e.g. `smtp.ethereal.email`, `587`) |
-| `SMTP_USER` / `PASS` | Worker | Ethereal SMTP credentials (auto-generated if left blank) |
-| `VITE_API_URL` | Frontend | Backend API base URL (default: `http://localhost:5000`) |
+Follow these steps to record the 5-minute assignment demo video:
 
----
-
-## ⚡ Concurrency, Rate Limiting & Reliability
-
-### 1. Configurable Worker Concurrency
-- Configured via `WORKER_CONCURRENCY=5` in `backend/src/workers/email.worker.ts`.
-- BullMQ allocates 5 parallel job threads without blocking the event loop.
-
-### 2. Multi-Sender Atomic Rate Limiting (Redis Lua)
-- Enforces hourly sending limits partitioned **per sender** (`ratelimit:sender:{normalizedEmail}:{windowTimestamp}`).
-- Rate check and token increment are executed atomically in Redis via a Lua script:
-  ```lua
-  local current = redis.call('GET', KEYS[1])
-  if current and tonumber(current) >= tonumber(ARGV[1]) then
-      return 0 -- Rate limit exceeded
-  else
-      local new_val = redis.call('INCR', KEYS[1])
-      if new_val == 1 then
-          redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
-      end
-      return 1 -- Allowed
-  end
-  ```
-- When a sender's hourly limit is reached, jobs are **not dropped**. The worker automatically reschedules the job with a delay pointing into the next hour window (`delay = nextWindowStart - now`), keeping the email status as `PENDING`.
-
-### 3. SMTP Connection Pooling & Burst Throttling
-- Nodemailer is configured with a pooled transport (`pool: true`, `maxConnections: 3`, `rateLimit: 3/sec`).
-- This buffers outgoing emails and prevents Ethereal SMTP `429 Too Many Requests` burst rejection errors during high worker concurrency.
-
-### 4. Exponential Retry Backoff
-- Queue options: `attempts: 4`, `backoff: { type: 'exponential', delay: 5000 }`.
-- First retry occurs at +5s, second at +10s, third at +20s.
-- During retries, the email status remains `PENDING` with the latest error message noted. Only after exhausting all 4 attempts is the email marked `FAILED`.
+1. **Sign In**: Navigate to `http://localhost:5173`, click **Start Free Trial** / **Sign In**, and sign in via Google OAuth with Clerk.
+2. **Create Scheduled Campaign**:
+   - Go to **Schedule Campaign**.
+   - Paste 3–5 recipient emails (or upload a CSV).
+   - Set a start time **1–2 minutes in the future** with a **5-second delay**.
+   - Click **Schedule Campaign**.
+3. **Demonstrate Scheduled State**:
+   - View the **All Campaigns** and **Delivery Logs** tabs.
+   - Show all emails in `PENDING` status with their exact future scheduled timestamps.
+4. **Demonstrate Restart Persistence**:
+   - In Terminal 2, stop the worker process (`Ctrl + C`).
+   - Show that the API server and Redis remain healthy while the worker is offline.
+   - Wait until the scheduled start time is reached.
+   - Restart the worker daemon (`npm run worker`).
+   - Observe that the worker immediately resumes, processes the due jobs, and dispatches them sequentially with the 5s delay.
+5. **Demonstrate Sent State & Previews**:
+   - Show the dashboard updating live via 3s polling as emails move from `PENDING` $\rightarrow$ `PROCESSING` $\rightarrow$ `SENT`.
+   - Click an Ethereal preview link in the Delivery Logs table to view the rendered HTML email in Ethereal's web viewer.
+6. **Bonus (Rate Limiting Demonstration)**:
+   - Create a campaign with an hourly limit of `2` emails/hr for a specific sender.
+   - Observe that the first 2 emails send immediately, and subsequent emails are automatically rescheduled to the next hourly window without failing.
 
 ---
 
-## 🛡️ Persistence & Restart Safety
+## 🎥 Demo Video
 
-- **Zero In-Memory Volatility**: Job definitions, scheduled timestamps, and payload parameters are serialized directly into Redis sorted sets (`bull:email-sending:delayed`).
-- **Crash Recovery**: If the API server or worker process terminates, Redis preserves all delayed jobs. When restarted, the worker immediately resumes processing future emails at their exact scheduled time.
-- **Idempotency**: BullMQ jobs are enqueued with explicit job IDs matching the PostgreSQL primary key:
-  ```typescript
-  jobId: email.id
-  ```
-  This prevents duplicate jobs from ever being enqueued for the same email record.
+> **Demo video**: To be added before final submission.
 
 ---
 
-## 📡 API Reference & Health Endpoints
+## 💡 Assumptions, Shortcuts, and Trade-offs
 
-### Health Check Endpoints (Public)
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/health` | `GET` | API server status check |
-| `/health/db` | `GET` | PostgreSQL connection health verification |
-| `/health/redis` | `GET` | Redis ping-pong health verification |
-
-### Protected API Endpoints (Requires Clerk JWT Bearer)
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/auth/me` | `GET` | Returns authenticated user profile and session info |
-| `/api/campaigns` | `POST` | Create a campaign, persist emails, and bulk enqueue delayed jobs |
-| `/api/campaigns` | `GET` | List all campaigns with aggregate progress counts |
-| `/api/campaigns/:id` | `GET` | Get detailed campaign audit trail and recipient timeline |
-| `/api/emails` | `GET` | Paginated query of email logs with status and search filters |
-| `/api/queue/status` | `GET` | Real-time BullMQ queue metrics and worker configuration |
-
----
-
-## 🧪 Testing & Verification
-
-### 1. Static Type & Build Checks
-```bash
-# Backend TypeScript Check
-cd backend && npx tsc --noEmit
-
-# Frontend TypeScript Check & Production Build
-cd frontend && npx tsc --noEmit && npm run build
-```
-
-### 2. Automated Test Scripts
-```bash
-# Concurrency and Rate Limit Verification
-cd backend && npx tsx src/scripts/test-phase5.ts
-
-# Multi-Sender Compliance & Spacing Delay Test
-cd backend && npx tsx src/scripts/test-phase6a-compliance.ts
-
-# Retry & Failure Handling Test
-cd backend && npx tsx src/scripts/test-failure.ts
-```
-
----
-
-## 💡 Assumptions & Design Trade-offs
-
-1. **Ethereal Test SMTP**: Used for test isolation and preview link generation. In production, Nodemailer transports can be swapped for Amazon SES, SendGrid, or Resend by changing environment variables.
-2. **Fixed 1-Hour Sliding Windows**: Per-sender hourly rate limiting uses hourly boundary buckets (`floor(now / 3600000) * 3600000`) for atomic Redis Lua performance and minimal memory overhead.
-3. **Dedicated Worker Architecture**: The worker is executed as a standalone Node.js process to ensure CPU/network heavy email dispatches never degrade HTTP API response times.
+1. **Ethereal Test SMTP**: Used for safe email testing and preview URL generation without spamming real inboxes. In enterprise production, the provider abstraction allows switching to Amazon SES, SendGrid, or Resend.
+2. **Live Polling over WebSockets**: The dashboard uses a 3-second polling interval for active campaigns. Polling was chosen to minimize WebSocket connection state complexity and ensure 100% resilience across serverless/container restarts.
+3. **Hourly Window Buckets**: Per-sender hourly rate limiting uses hourly boundary buckets (`floor(now / 3600000) * 3600000`) for atomic Redis Lua execution with $O(1)$ memory overhead per sender.
+4. **Standalone Worker Architecture**: The worker is decoupled into a dedicated Node.js process so that heavy SMTP and queue workloads never block HTTP API request throughput.
+5. **Provider Abstraction**: Ethereal SMTP remains the primary default implementation required for evaluating this assessment; optional providers exist solely for deployment portability on cloud hosts where outbound SMTP ports are blocked.
 
 ---
 
 ## 👤 Author & Submission Details
 
 - **Candidate**: Chakradhar Reddy
-- **Repository**: [https://github.com/chakradhar91085/outbox-email-scheduler](https://github.com/chakradhar91085/outbox-email-scheduler)
+- **Repository**: [https://github.com/chakradhar91085/outbox-email-scheduler](https://github.com/chakradhar91085/outbox-email-scheduler) (Private)
+- **Collaborators Invited**: `Mitrajit`, `Yadav036`
 - **Target Company**: ReachInbox.ai / Outbox Labs
