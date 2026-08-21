@@ -324,7 +324,7 @@ npm run dev
 
 ### 2. Backend Deployment (Render Web Service)
 - **Root Directory**: `backend`
-- **Build Command**: `npm install && npm run build && npx prisma db push`
+- **Build Command**: `npm install && npm run build`
 - **Start Command**: `npm start` (runs `node dist/index.js` — automatically executes both the **Express REST API** and the **BullMQ Email Worker** concurrently in a single service process, ideal for Render Free Tier)
 - **Health Check Path**: `/health`
 
