@@ -1,40 +1,45 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Sidebar, NavTab } from './Sidebar';
 import { Header } from './Header';
+import { cn } from '../../lib/utils';
 
 interface AppLayoutProps {
-  currentTab: NavTab;
-  onSelectTab: (tab: NavTab) => void;
-  workerConcurrency?: number;
+  activeTab: NavTab;
+  onTabChange: (tab: NavTab) => void;
   children: React.ReactNode;
+  workerConcurrency?: number;
+  onViewLandingPage?: () => void;
+  className?: string;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
-  currentTab,
-  onSelectTab,
-  workerConcurrency,
+  activeTab,
+  onTabChange,
   children,
+  workerConcurrency = 5,
+  onViewLandingPage,
+  className,
 }) => {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
-      {/* Sidebar navigation */}
+    <div className="flex min-h-screen bg-background text-foreground noise-overlay">
+      {/* Sidebar Navigation */}
       <Sidebar
-        currentTab={currentTab}
-        onSelectTab={onSelectTab}
-        isOpen={isMobileOpen}
-        onCloseMobile={() => setIsMobileOpen(false)}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        workerConcurrency={workerConcurrency}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header
-          currentTab={currentTab}
-          onOpenMobileMenu={() => setIsMobileOpen(true)}
+          activeTab={activeTab}
           workerConcurrency={workerConcurrency}
+          onViewLandingPage={onViewLandingPage}
         />
-        <main className="flex-1 p-6 max-w-7xl w-full mx-auto">{children}</main>
+
+        <main className={cn('flex-1 p-6 lg:p-10 max-w-[1500px] w-full mx-auto space-y-8', className)}>
+          {children}
+        </main>
       </div>
     </div>
   );

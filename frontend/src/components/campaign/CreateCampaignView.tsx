@@ -5,15 +5,15 @@ import { CreateCampaignPayload } from '../../types';
 import { NavTab } from '../layout/Sidebar';
 import {
   UploadCloud,
-  FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   Clock,
   Send,
   Calendar,
   Layers,
-  Sparkles,
+  User,
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface CreateCampaignViewProps {
   onNavigate: (tab: NavTab) => void;
@@ -194,28 +194,34 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
   // Success Confirmation State
   if (createdSuccess) {
     return (
-      <div className="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center shadow-xl">
-        <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto mb-4">
+      <div className="max-w-2xl mx-auto bg-surface border border-border rounded-2xl p-10 text-center shadow-xl space-y-6 animate-in zoom-in-95 duration-200">
+        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto">
           <CheckCircle2 className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-white tracking-tight">
-          Campaign Scheduled Successfully!
-        </h2>
-        <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto">
-          Persisted <strong>{createdSuccess.total} emails</strong> in PostgreSQL and enqueued delayed BullMQ jobs in Redis. Delivery starts at{' '}
-          <span className="text-indigo-400 font-medium">{createdSuccess.firstTime}</span>.
-        </p>
 
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div>
+          <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 block mb-1">
+            Pipeline Initialized
+          </span>
+          <h2 className="text-2xl font-bold text-white tracking-tight font-sans">
+            Campaign Scheduled Successfully!
+          </h2>
+          <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+            Persisted <strong className="text-white font-mono">{createdSuccess.total} emails</strong> in PostgreSQL and enqueued delayed BullMQ jobs in Redis. First dispatch begins at{' '}
+            <span className="text-indigo-400 font-mono">{createdSuccess.firstTime}</span>.
+          </p>
+        </div>
+
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => onCampaignCreated(createdSuccess.id)}
-            className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-600/30"
+            className="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono uppercase tracking-wider font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/30 hover:scale-[1.02]"
           >
-            View Campaign Details
+            Inspect Campaign Details
           </button>
           <button
             onClick={() => onNavigate('campaigns')}
-            className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-xl border border-slate-700 transition-colors"
+            className="w-full sm:w-auto px-6 py-2.5 bg-surface-elevated hover:bg-surface-highlight text-slate-300 text-xs font-mono uppercase tracking-wider font-medium rounded-xl border border-border transition-colors"
           >
             View All Campaigns
           </button>
@@ -227,7 +233,7 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
               setSubject('');
               setBody('');
             }}
-            className="w-full sm:w-auto px-5 py-2.5 text-slate-400 hover:text-white text-sm font-medium transition-colors"
+            className="w-full sm:w-auto px-6 py-2.5 text-muted-foreground hover:text-white text-xs font-mono uppercase tracking-wider transition-colors"
           >
             Schedule Another
           </button>
@@ -237,92 +243,96 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-6">
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-white tracking-tight">Schedule an Email Campaign</h2>
-        <p className="text-xs text-slate-400 mt-1">
+      <div className="pb-6 border-b border-border">
+        <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
+          <span className="w-8 h-px bg-indigo-500/50" />
+          Campaign Dispatch Wizard
+        </span>
+        <h2 className="text-3xl font-bold tracking-tight text-white font-sans">
+          Schedule Outreach Campaign
+        </h2>
+        <p className="text-xs font-mono text-muted-foreground mt-1">
           Upload lead CSVs, configure delivery spacing, and enforce sender rate limits.
         </p>
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 text-rose-400 flex items-center gap-3 text-sm">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 flex items-center gap-3 text-xs font-mono">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* 1. Recipient List Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
-              1
+      {/* Step 1: Recipients / Audience */}
+      <div className="bg-surface border border-border rounded-2xl p-6 lg:p-8 space-y-6 shadow-sm">
+        <div className="flex items-center justify-between border-b border-border pb-4">
+          <div className="flex items-center gap-3">
+            <span className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-mono text-xs font-bold">
+              01
             </span>
-            <h3 className="text-sm font-semibold text-white">Target Recipients</h3>
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-tight">Recipient Audience</h3>
+              <p className="text-[11px] font-mono text-muted-foreground">Upload CSV or paste email addresses</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+          <div className="flex items-center gap-1 bg-background p-1 rounded-xl border border-border text-xs">
             <button
               type="button"
               onClick={() => setRecipientInputMode('csv')}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors ${
+              className={cn(
+                'px-3 py-1.5 rounded-lg font-mono text-xs transition-colors',
                 recipientInputMode === 'csv'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-muted-foreground hover:text-white'
+              )}
             >
               CSV Upload
             </button>
             <button
               type="button"
               onClick={() => setRecipientInputMode('manual')}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors ${
+              className={cn(
+                'px-3 py-1.5 rounded-lg font-mono text-xs transition-colors',
                 recipientInputMode === 'manual'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-muted-foreground hover:text-white'
+              )}
             >
-              Paste Emails
+              Manual Paste
             </button>
           </div>
         </div>
 
         {recipientInputMode === 'csv' ? (
-          <div className="space-y-3">
-            <label className="border-2 border-dashed border-slate-700/80 hover:border-indigo-500/60 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition-all">
+          <div className="space-y-4">
+            <label className="block border-2 border-dashed border-border hover:border-indigo-500/50 rounded-2xl p-8 text-center cursor-pointer transition-all bg-background/50 hover:bg-white/[0.02] group">
+              <UploadCloud className="w-10 h-10 mx-auto text-muted-foreground group-hover:text-indigo-400 transition-colors mb-3" />
+              <span className="text-sm font-semibold text-white block">
+                {fileName ? fileName : 'Click or drag & drop CSV file'}
+              </span>
+              <span className="text-xs font-mono text-muted-foreground mt-1 block">
+                Supports auto-column detection (`email`, `recipient`, `mail`)
+              </span>
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv"
                 onChange={handleFileUpload}
                 className="hidden"
               />
-              <UploadCloud className="w-10 h-10 text-indigo-400 mb-2" />
-              <span className="text-sm font-medium text-slate-200">
-                Click to upload CSV file
-              </span>
-              <span className="text-xs text-slate-500 mt-1">
-                CSV with <code className="text-indigo-300">email</code> column header or raw email lists
-              </span>
             </label>
 
-            {fileName && (
-              <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                  <span className="font-semibold">{fileName}</span>
+            {recipients.length > 0 && (
+              <div className="p-4 bg-background border border-border rounded-xl flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{recipients.length} Valid Recipients Parsed</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-emerald-400 font-semibold">
-                    {recipients.length} valid email(s)
-                  </span>
-                  {invalidCount > 0 && (
-                    <span className="text-amber-400">
-                      ({invalidCount} skipped/invalid)
-                    </span>
-                  )}
-                </div>
+                {invalidCount > 0 && (
+                  <span className="text-amber-400">{invalidCount} Invalid/Duplicate Skipped</span>
+                )}
               </div>
             )}
           </div>
@@ -330,218 +340,182 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
           <div className="space-y-2">
             <textarea
               rows={4}
-              placeholder="Paste email addresses separated by commas or newlines:&#10;sarah@example.com&#10;david@company.io&#10;elena@reachinbox.ai"
+              placeholder="Paste email addresses separated by commas or line breaks&#10;alice@company.com&#10;bob@startup.io&#10;charlie@enterprise.org"
               value={manualText}
               onChange={(e) => handleManualTextChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-600 font-mono"
+              className="w-full bg-background border border-border rounded-xl p-4 text-xs font-mono text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-indigo-500 transition-colors"
             />
-            <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-              <span>{recipients.length} valid recipient(s) parsed</span>
-              {invalidCount > 0 && <span className="text-amber-400">{invalidCount} skipped</span>}
-            </div>
-          </div>
-        )}
-
-        {/* Preview of first 5 parsed recipients */}
-        {recipients.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-slate-800/80">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400 block mb-2">
-              Recipients Preview ({recipients.length} total):
-            </span>
-            <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
-              {recipients.slice(0, 10).map((r, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700 text-[11px] text-slate-300 font-mono truncate max-w-[200px]"
-                >
-                  {r}
-                </span>
-              ))}
-              {recipients.length > 10 && (
-                <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-[11px] text-indigo-300 font-medium">
-                  +{recipients.length - 10} more
-                </span>
-              )}
-            </div>
+            {recipients.length > 0 && (
+              <span className="text-xs font-mono text-emerald-400 block">
+                ✓ {recipients.length} valid unique recipients detected
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {/* 2. Campaign Details & Content */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2.5 mb-1">
-          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
-            2
+      {/* Step 2: Email Template Content */}
+      <div className="bg-surface border border-border rounded-2xl p-6 lg:p-8 space-y-6 shadow-sm">
+        <div className="flex items-center gap-3 border-b border-border pb-4">
+          <span className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-mono text-xs font-bold">
+            02
           </span>
-          <h3 className="text-sm font-semibold text-white">Email Content & Sender</h3>
+          <div>
+            <h3 className="text-sm font-bold text-white tracking-tight">Email Content & Identity</h3>
+            <p className="text-[11px] font-mono text-muted-foreground">Sender profile, subject line, and outreach body</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Sender Identifier / From Address
+            <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+              Sender Address
             </label>
-            <input
-              type="text"
-              required
-              value={sender}
-              onChange={(e) => setSender(e.target.value)}
-              placeholder="e.g. Sales Team <sales@company.com>"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Used in the SMTP <code className="text-indigo-300">From</code> header and for hourly rate limiting.
-            </p>
+            <div className="relative">
+              <User className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Sender Name <sender@domain.com>"
+                value={sender}
+                onChange={(e) => setSender(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-2.5 text-xs font-mono text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Email Subject
+            <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+              Subject Line
             </label>
             <input
               type="text"
-              required
+              placeholder="e.g. Accelerating your data workflows with ReachInbox"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Follow up on our recent product demo"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1.5">
-            Email Body (Plain Text / HTML)
-          </label>
-          <textarea
-            rows={5}
-            required
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Hi there,&#10;&#10;I wanted to share an update regarding our email scheduler platform. Let me know if you'd like to connect.&#10;&#10;Best,&#10;ReachInbox Team"
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-white focus:outline-none focus:border-indigo-500 leading-relaxed font-sans"
-          />
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+              Email Body Content
+            </label>
+            <textarea
+              rows={6}
+              placeholder="Write your email body template here..."
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl p-4 text-xs text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-indigo-500 transition-colors leading-relaxed font-sans"
+            />
+          </div>
         </div>
       </div>
 
-      {/* 3. Scheduling & Rate Limiting Controls */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2.5 mb-1">
-          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
-            3
-          </span>
-          <h3 className="text-sm font-semibold text-white">Delivery Timing & Rate Limits</h3>
-        </div>
+      {/* Step 3: Timing & Rate Limits + Schedule Calculator */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Controls */}
+        <div className="lg:col-span-2 bg-surface border border-border rounded-2xl p-6 lg:p-8 space-y-6 shadow-sm">
+          <div className="flex items-center gap-3 border-b border-border pb-4">
+            <span className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-mono text-xs font-bold">
+              03
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-tight">Timing & Rate Controls</h3>
+              <p className="text-[11px] font-mono text-muted-foreground">Start schedule, stagger spacing, and hourly limit</p>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Start Date & Time</span>
-            </label>
-            <input
-              type="datetime-local"
-              required
-              value={startTimeStr}
-              onChange={(e) => setStartTimeStr(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-            />
-            <p className="text-[11px] text-slate-500 mt-1">First email dispatch time.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-blue-400" /> Start Time ($T_0$)
+              </label>
+              <input
+                type="datetime-local"
+                value={startTimeStr}
+                onChange={(e) => setStartTimeStr(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-400" /> Stagger Delay (seconds/email)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={3600}
+                value={delaySeconds}
+                onChange={(e) => setDelaySeconds(Number(e.target.value))}
+                className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Delay Between Sends (Seconds)</span>
+            <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-emerald-400" /> Hourly Rate Limit (per sender)
             </label>
             <input
               type="number"
-              required
-              min={0}
-              max={3600}
-              value={delaySeconds}
-              onChange={(e) => setDelaySeconds(Math.max(0, parseInt(e.target.value || '0', 10)))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-            />
-            <p className="text-[11px] text-slate-500 mt-1">Minimum spacing between consecutive emails.</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Hourly Sending Limit</span>
-            </label>
-            <input
-              type="number"
-              required
               min={1}
               max={10000}
               value={hourlyLimit}
-              onChange={(e) => setHourlyLimit(Math.max(1, parseInt(e.target.value || '1', 10)))}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              onChange={(e) => setHourlyLimit(Number(e.target.value))}
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition-colors"
             />
-            <p className="text-[11px] text-slate-500 mt-1">Max emails this sender can send per hour.</p>
+            <span className="text-[11px] font-mono text-muted-foreground mt-1.5 block">
+              Enforced across all campaigns using this sender email via Redis Lua script.
+            </span>
           </div>
         </div>
 
-        {/* Live Calculation Preview Card */}
-        <div className="mt-4 p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-xl">
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-300 mb-2">
-            <Sparkles className="w-4 h-4" />
-            <span>Scheduling Timeline Preview</span>
+        {/* Real-time Schedule Calculator Card */}
+        <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col justify-between shadow-sm space-y-4">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 block mb-1">
+              Live Schedule Math
+            </span>
+            <h4 className="text-sm font-bold text-white tracking-tight">Timeline Estimation</h4>
+
+            <div className="mt-4 space-y-3 text-xs font-mono">
+              <div className="p-3 bg-background border border-border rounded-xl space-y-1">
+                <span className="text-muted-foreground text-[10px] uppercase block">Recipients</span>
+                <span className="text-base font-bold text-white">{recipientCount} leads</span>
+              </div>
+
+              <div className="p-3 bg-background border border-border rounded-xl space-y-1">
+                <span className="text-muted-foreground text-[10px] uppercase block">Estimated Duration</span>
+                <span className="text-base font-bold text-indigo-300">
+                  {Math.ceil(totalDurationSeconds / 60)} min ({totalDurationSeconds}s)
+                </span>
+              </div>
+
+              <div className="p-3 bg-background border border-border rounded-xl space-y-1">
+                <span className="text-muted-foreground text-[10px] uppercase block">Completion Time</span>
+                <span className="text-xs text-emerald-400 font-semibold block">
+                  {estimatedCompletionDate.toLocaleTimeString()}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div>
-              <span className="text-slate-500 block text-[11px]">Total Recipients</span>
-              <span className="font-semibold text-white">{recipientCount} leads</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-[11px]">First Send ($T_0$)</span>
-              <span className="font-semibold text-white truncate block">
-                {startDate.toLocaleTimeString()}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-[11px]">Interval Spacing</span>
-              <span className="font-semibold text-white">+{delaySeconds}s per email</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-[11px]">Est. Completion</span>
-              <span className="font-semibold text-emerald-400 truncate block">
-                {recipientCount > 0 ? estimatedCompletionDate.toLocaleTimeString() : 'N/A'}
-              </span>
-            </div>
-          </div>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono uppercase tracking-wider font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.02] disabled:opacity-50"
+          >
+            {submitting ? (
+              <span>Enqueueing BullMQ Jobs...</span>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Schedule Campaign</span>
+              </>
+            )}
+          </button>
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => onNavigate('campaigns')}
-          className="px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-xs font-medium transition-colors"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          disabled={submitting || recipients.length === 0}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-900/50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01]"
-        >
-          {submitting ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Scheduling Campaign...</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4" />
-              <span>Schedule Campaign ({recipients.length} emails)</span>
-            </>
-          )}
-        </button>
       </div>
     </form>
   );

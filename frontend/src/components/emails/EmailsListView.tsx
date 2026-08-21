@@ -16,6 +16,7 @@ import {
   XCircle,
   Activity,
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface EmailsListViewProps {
   token?: string | null;
@@ -75,7 +76,7 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
     fetchEmails(true);
   }, [statusFilter, page, limit, token]);
 
-  // Periodic Background Polling (every 4 seconds) if there are active emails or pending state
+  // Periodic Background Polling (every 4 seconds) if there are active emails
   useEffect(() => {
     const intervalId = setInterval(() => {
       const currentList = emailsRef.current;
@@ -85,7 +86,6 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
           (e) => e.status === 'PENDING' || e.status === 'PROCESSING'
         );
 
-      // Also refresh if filter is PENDING or PROCESSING or ALL
       if (hasActive || statusFilter === 'PENDING' || statusFilter === 'PROCESSING' || statusFilter === 'ALL') {
         fetchEmails(false);
       }
@@ -111,19 +111,25 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">Email Delivery Logs</h2>
+          <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
+            <span className="w-8 h-px bg-indigo-500/50" />
+            Audit Trail
+          </span>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight text-white font-sans">
+              Email Delivery Logs
+            </h2>
             {isRefreshing && (
-              <span className="inline-flex items-center gap-1 text-[11px] text-indigo-400 font-medium">
-                <Activity className="w-3 h-3 animate-spin" /> Live Syncing...
+              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-indigo-400">
+                <Activity className="w-3 h-3 animate-spin" /> Syncing...
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs font-mono text-muted-foreground mt-1">
             Real-time audit log of all individual scheduled, sent, and throttled email dispatches.
           </p>
         </div>
@@ -131,7 +137,7 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
         <button
           onClick={() => fetchEmails(false)}
           disabled={isRefreshing}
-          className="self-start sm:self-auto p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-colors disabled:opacity-50"
+          className="self-start sm:self-auto p-2.5 bg-surface hover:bg-surface-elevated text-muted-foreground hover:text-white rounded-xl border border-border transition-colors disabled:opacity-50"
           title="Refresh table"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-400' : ''}`} />
@@ -139,7 +145,7 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4 shadow-sm">
+      <div className="bg-surface border border-border rounded-2xl p-4 space-y-4 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Status Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
@@ -152,11 +158,12 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
                     setStatusFilter(tab.id);
                     setPage(1);
                   }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider whitespace-nowrap transition-all border',
                     active
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
+                      ? 'bg-indigo-600/15 text-white border-indigo-500/30 font-semibold shadow-sm'
+                      : 'border-transparent text-muted-foreground hover:text-white hover:bg-white/[0.03]'
+                  )}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
@@ -168,18 +175,18 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
           {/* Search Bar */}
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
             <div className="relative flex-1 sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search recipient, subject, sender..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-background border border-border rounded-xl pl-9 pr-3.5 py-1.5 text-xs font-mono text-white placeholder:text-muted-foreground/60 focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
             <button
               type="submit"
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-colors"
+              className="px-3.5 py-1.5 bg-surface-elevated hover:bg-surface-highlight text-white text-xs font-mono uppercase tracking-wider font-semibold rounded-xl border border-border transition-colors"
             >
               Search
             </button>
@@ -189,62 +196,62 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
 
       {/* Main Table */}
       {loading ? (
-        <LoadingSpinner message="Querying email logs..." size="md" />
+        <LoadingSpinner message="Querying email dispatch logs..." size="md" />
       ) : error ? (
         <ErrorAlert message={error} onRetry={() => fetchEmails(true)} />
       ) : emails.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-400">
-          <Mail className="w-12 h-12 mx-auto text-slate-700 mb-3" />
-          <h3 className="text-base font-semibold text-slate-200">No emails found</h3>
-          <p className="text-xs text-slate-500 mt-1">
+        <div className="bg-surface border border-border rounded-2xl p-16 text-center text-muted-foreground space-y-3 shadow-sm">
+          <Mail className="w-12 h-12 mx-auto text-slate-700 mb-2" />
+          <h3 className="text-base font-bold text-white tracking-tight">No emails found</h3>
+          <p className="text-xs font-mono text-muted-foreground mt-1">
             {searchQuery || statusFilter !== 'ALL'
               ? 'No emails match your active search or status filter.'
               : 'Emails will appear here once campaigns are scheduled.'}
           </p>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/70 text-slate-400 font-semibold border-b border-slate-800">
+              <thead className="bg-background/50 text-muted-foreground font-mono text-[11px] uppercase tracking-wider border-b border-border">
                 <tr>
-                  <th className="py-3 px-4">Recipient</th>
-                  <th className="py-3 px-4">Campaign Subject</th>
-                  <th className="py-3 px-4">Sender</th>
-                  <th className="py-3 px-4">Scheduled For</th>
-                  <th className="py-3 px-4">Sent At</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Attempts</th>
-                  <th className="py-3 px-4">Error / Notes</th>
+                  <th className="py-3.5 px-6">Recipient</th>
+                  <th className="py-3.5 px-6">Campaign Subject</th>
+                  <th className="py-3.5 px-6">Sender</th>
+                  <th className="py-3.5 px-6">Scheduled For</th>
+                  <th className="py-3.5 px-6">Sent At</th>
+                  <th className="py-3.5 px-6">Status</th>
+                  <th className="py-3.5 px-6">Attempts</th>
+                  <th className="py-3.5 px-6">Error / Notes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-border/60 text-slate-300 font-sans">
                 {emails.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-white max-w-[200px] truncate">
+                  <tr key={e.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-4 px-6 font-mono font-medium text-white max-w-[200px] truncate text-xs">
                       {e.recipientEmail}
                     </td>
-                    <td className="py-3 px-4 text-slate-300 max-w-[200px] truncate">
+                    <td className="py-4 px-6 text-slate-300 max-w-[200px] truncate">
                       {e.campaign?.subject || '—'}
                     </td>
-                    <td className="py-3 px-4 text-slate-400 max-w-[160px] truncate">
+                    <td className="py-4 px-6 text-muted-foreground font-mono text-[11px] max-w-[160px] truncate">
                       {e.campaign?.sender || '—'}
                     </td>
-                    <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                    <td className="py-4 px-6 text-muted-foreground font-mono text-[11px] whitespace-nowrap">
                       {new Date(e.scheduledAt).toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                    <td className="py-4 px-6 text-muted-foreground font-mono text-[11px] whitespace-nowrap">
                       {e.sentAt ? new Date(e.sentAt).toLocaleString() : '—'}
                     </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
+                    <td className="py-4 px-6 whitespace-nowrap">
                       <StatusBadge status={e.status} size="sm" />
                     </td>
-                    <td className="py-3 px-4 text-slate-400 font-mono text-center sm:text-left">
+                    <td className="py-4 px-6 text-muted-foreground font-mono text-[11px]">
                       {e.attempts}
                     </td>
                     <td
                       title={e.errorMessage || undefined}
-                      className="py-3 px-4 text-rose-400 font-mono text-[11px] max-w-[180px] truncate cursor-help"
+                      className="py-4 px-6 text-rose-400 font-mono text-[11px] max-w-[180px] truncate cursor-help"
                     >
                       {e.errorMessage || '—'}
                     </td>
@@ -255,13 +262,13 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
           </div>
 
           {/* Pagination Controls */}
-          <div className="p-4 bg-slate-950/50 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+          <div className="p-4 bg-background/50 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-muted-foreground">
             <div>
-              Showing <span className="font-semibold text-white">{emails.length}</span> of{' '}
-              <span className="font-semibold text-white">{totalItems}</span> total emails
+              Showing <span className="font-bold text-white">{emails.length}</span> of{' '}
+              <span className="font-bold text-white">{totalItems}</span> total emails
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
                 <span>Per page:</span>
                 <select
@@ -270,7 +277,7 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
                     setLimit(Number(e.target.value));
                     setPage(1);
                   }}
-                  className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="bg-surface border border-border rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -283,17 +290,17 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
                 <button
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition-colors"
+                  className="p-1.5 rounded-lg border border-border bg-surface hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="px-2 font-medium text-slate-300">
-                  Page {page} of {totalPages}
+                <span className="px-3 font-semibold text-white">
+                  {page} / {totalPages}
                 </span>
                 <button
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition-colors"
+                  className="p-1.5 rounded-lg border border-border bg-surface hover:bg-surface-elevated disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 transition-colors"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

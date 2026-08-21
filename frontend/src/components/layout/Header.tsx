@@ -1,80 +1,101 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserButton, useUser } from '@clerk/clerk-react';
-import { Menu, ShieldCheck } from 'lucide-react';
 import { NavTab } from './Sidebar';
+import { ChevronRight, Cpu, Globe } from 'lucide-react';
 
 interface HeaderProps {
-  currentTab: NavTab;
-  onOpenMobileMenu: () => void;
+  activeTab: NavTab;
   workerConcurrency?: number;
+  onViewLandingPage?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  currentTab,
-  onOpenMobileMenu,
+  activeTab,
   workerConcurrency = 5,
+  onViewLandingPage,
 }) => {
   const { user } = useUser();
+  const [time, setTime] = useState(new Date());
 
-  const getTitle = () => {
-    switch (currentTab) {
-      case 'dashboard':
-        return 'System Overview';
-      case 'create-campaign':
-        return 'Schedule New Campaign';
-      case 'campaigns':
-        return 'Campaigns';
-      case 'emails':
-        return 'Email Delivery Log';
-      case 'queue':
-        return 'BullMQ Queue Telemetry';
-      default:
-        return 'Dashboard';
-    }
+  // Synchronized Live Clock from V0 design
+  useEffect(() => {
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const tabLabels: Record<NavTab, { title: string; category: string }> = {
+    dashboard: { title: 'Overview & Telemetry', category: 'Console' },
+    'create-campaign': { title: 'Schedule Campaign', category: 'Outreach' },
+    campaigns: { title: 'All Campaigns', category: 'Outreach' },
+    emails: { title: 'Delivery Logs', category: 'Audit' },
+    queue: { title: 'BullMQ Monitor', category: 'Infrastructure' },
   };
 
-  return (
-    <header className="h-16 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30">
-      <div className="flex items-center gap-3">
-        {/* Mobile hamburger menu toggle */}
-        <button
-          onClick={onOpenMobileMenu}
-          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden"
-          aria-label="Open sidebar"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+  const current = tabLabels[activeTab] || { title: 'Dashboard', category: 'Console' };
 
-        <div>
-          <h1 className="text-base font-semibold text-white tracking-tight">{getTitle()}</h1>
-        </div>
+  return (
+    <header className="h-16 bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-20 flex items-center justify-between px-6">
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground font-mono uppercase tracking-widest text-[11px]">
+          {current.category}
+        </span>
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+        <span className="font-semibold text-white tracking-tight font-sans">
+          {current.title}
+        </span>
       </div>
 
-      {/* Right side user & system badge */}
+      {/* Live System Status & User Area */}
       <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-slate-800/60 border border-slate-700/60 rounded-lg text-xs text-slate-300">
-          <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Worker Concurrency: <strong className="text-white">{workerConcurrency}</strong></span>
+        {/* Landing Page Switcher */}
+        {onViewLandingPage && (
+          <button
+            onClick={onViewLandingPage}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-elevated hover:bg-surface-highlight text-muted-foreground hover:text-white border border-border text-xs font-mono uppercase tracking-wider transition-colors"
+            title="View Public Landing Page"
+          >
+            <Globe className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Landing Page</span>
+          </button>
+        )}
+
+        {/* Live Clock & Pulse Indicator */}
+        <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-mono text-muted-foreground">
+          <span className="flex items-center gap-2 text-emerald-400 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            Live
+          </span>
+          <span className="text-white/20">|</span>
+          <span className="text-slate-300">{time.toLocaleTimeString()}</span>
         </div>
 
-        <div className="flex items-center gap-3 pl-2 border-l border-slate-800">
-          <div className="hidden md:block text-right">
-            <span className="text-xs font-medium text-white block leading-tight">
-              {user?.fullName || user?.firstName || 'Logged In'}
+        {/* Worker Badge */}
+        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono">
+          <Cpu className="w-3.5 h-3.5" />
+          <span>{workerConcurrency} Workers</span>
+        </div>
+
+        {/* User Info & Clerk Avatar */}
+        <div className="flex items-center gap-3 pl-2 border-l border-border">
+          <div className="hidden lg:flex flex-col text-right">
+            <span className="text-xs font-semibold text-white leading-tight font-sans">
+              {user?.fullName || user?.firstName || 'Operator'}
             </span>
-            <span className="text-[11px] text-slate-400 block truncate max-w-[150px]">
+            <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[140px]">
               {user?.primaryEmailAddress?.emailAddress}
             </span>
           </div>
 
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: 'w-8 h-8 rounded-full border border-indigo-500/30',
-              },
-            }}
-          />
+          <div className="flex items-center">
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: 'w-8 h-8 rounded-lg border border-white/10 shadow-sm',
+                },
+              }}
+            />
+          </div>
         </div>
       </div>
     </header>

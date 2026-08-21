@@ -7,11 +7,16 @@ import { CreateCampaignView } from './components/campaign/CreateCampaignView';
 import { CampaignsListView } from './components/campaign/CampaignsListView';
 import { EmailsListView } from './components/emails/EmailsListView';
 import { QueueMonitorView } from './components/queue/QueueMonitorView';
+import { LandingPage } from './components/landing/LandingPage';
 import { api } from './services/api';
 import { QueueStatus } from './types';
-import { Zap } from 'lucide-react';
+import { Radio, ArrowLeft } from 'lucide-react';
 
-function AuthenticatedApp() {
+interface AuthenticatedAppProps {
+  onViewLandingPage: () => void;
+}
+
+function AuthenticatedApp({ onViewLandingPage }: AuthenticatedAppProps) {
   const { getToken } = useAuth();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
@@ -93,9 +98,10 @@ function AuthenticatedApp() {
 
   return (
     <AppLayout
-      currentTab={currentTab}
-      onSelectTab={handleNavigate}
+      activeTab={currentTab}
+      onTabChange={handleNavigate}
       workerConcurrency={workerConcurrency}
+      onViewLandingPage={onViewLandingPage}
     >
       {renderActiveView()}
     </AppLayout>
@@ -103,33 +109,65 @@ function AuthenticatedApp() {
 }
 
 function App() {
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showLandingWhenSignedIn, setShowLandingWhenSignedIn] = useState(false);
+
   return (
     <>
       <SignedOut>
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6">
-          <div className="mb-6 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white mx-auto mb-4 shadow-xl shadow-indigo-500/25">
-              <Zap className="w-7 h-7 fill-current" />
+        {showAuthModal ? (
+          <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 noise-overlay">
+            {/* Back to Landing Page Button */}
+            <div className="mb-6 w-full max-w-md flex items-center justify-between">
+              <button
+                onClick={() => setShowAuthModal(false)}
+                className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Overview</span>
+              </button>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
-              ReachInbox Email Scheduler
-            </h1>
-            <p className="text-slate-400 text-xs max-w-sm mx-auto">
-              Automated delayed outreach, BullMQ persistent queues, and Ethereal SMTP delivery assessment.
-            </p>
-          </div>
 
-          <div className="w-full flex justify-center">
-            <SignIn
-              fallbackRedirectUrl="/"
-              signUpFallbackRedirectUrl="/"
-            />
+            <div className="mb-6 text-center max-w-md">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white mx-auto mb-3 shadow-xl shadow-indigo-600/30">
+                <Radio className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-white mb-1 font-sans">
+                Sign in to ReachInbox
+              </h2>
+              <p className="text-muted-foreground text-xs">
+                Access your scheduled campaigns and real-time BullMQ telemetry console.
+              </p>
+            </div>
+
+            <div className="w-full max-w-md flex justify-center">
+              <SignIn
+                fallbackRedirectUrl="/"
+                signUpFallbackRedirectUrl="/"
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <LandingPage
+            onSignIn={() => setShowAuthModal(true)}
+            onGetStarted={() => setShowAuthModal(true)}
+          />
+        )}
       </SignedOut>
 
       <SignedIn>
-        <AuthenticatedApp />
+        {showLandingWhenSignedIn ? (
+          <LandingPage
+            isSignedIn={true}
+            onSignIn={() => setShowLandingWhenSignedIn(false)}
+            onGetStarted={() => setShowLandingWhenSignedIn(false)}
+            onOpenDashboard={() => setShowLandingWhenSignedIn(false)}
+          />
+        ) : (
+          <AuthenticatedApp
+            onViewLandingPage={() => setShowLandingWhenSignedIn(true)}
+          />
+        )}
       </SignedIn>
     </>
   );

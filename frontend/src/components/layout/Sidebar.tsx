@@ -5,136 +5,201 @@ import {
   FolderKanban,
   Mail,
   Activity,
-  Zap,
-  Server,
+  Cpu,
+  Radio,
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 export type NavTab = 'dashboard' | 'create-campaign' | 'campaigns' | 'emails' | 'queue';
 
 interface SidebarProps {
-  currentTab: NavTab;
-  onSelectTab: (tab: NavTab) => void;
-  isOpen: boolean;
-  onCloseMobile: () => void;
+  activeTab: NavTab;
+  onTabChange: (tab: NavTab) => void;
+  workerConcurrency?: number;
+  className?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  currentTab,
-  onSelectTab,
-  isOpen,
-  onCloseMobile,
+  activeTab,
+  onTabChange,
+  workerConcurrency = 5,
+  className,
 }) => {
-  const navItems = [
+  const mainNavItems = [
     {
       id: 'dashboard' as NavTab,
       label: 'Dashboard',
-      icon: <LayoutDashboard className="w-5 h-5" />,
-      description: 'System overview & metrics',
+      icon: <LayoutDashboard className="w-4 h-4" />,
+      shortcut: '⌘1',
     },
     {
       id: 'create-campaign' as NavTab,
-      label: 'Create Campaign',
-      icon: <PlusCircle className="w-5 h-5" />,
-      description: 'CSV upload & scheduling',
+      label: 'New Campaign',
+      icon: <PlusCircle className="w-4 h-4" />,
+      shortcut: '⌘2',
+      badge: 'Create',
     },
     {
       id: 'campaigns' as NavTab,
       label: 'Campaigns',
-      icon: <FolderKanban className="w-5 h-5" />,
-      description: 'All scheduled campaigns',
+      icon: <FolderKanban className="w-4 h-4" />,
+      shortcut: '⌘3',
     },
     {
       id: 'emails' as NavTab,
-      label: 'Emails',
-      icon: <Mail className="w-5 h-5" />,
-      description: 'Sent, pending & failed logs',
+      label: 'Email Logs',
+      icon: <Mail className="w-4 h-4" />,
+      shortcut: '⌘4',
     },
+  ];
+
+  const monitoringItems = [
     {
       id: 'queue' as NavTab,
       label: 'Queue Monitor',
-      icon: <Activity className="w-5 h-5" />,
-      description: 'Live BullMQ telemetry',
+      icon: <Activity className="w-4 h-4" />,
+      shortcut: '⌘5',
+      badge: 'Live',
     },
   ];
 
   return (
-    <>
-      {/* Mobile overlay backdrop */}
-      {isOpen && (
-        <div
-          onClick={onCloseMobile}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-        />
+    <aside
+      className={cn(
+        'w-64 bg-surface border-r border-border flex flex-col justify-between h-screen sticky top-0 z-30 select-none',
+        className
       )}
-
-      {/* Sidebar container */}
-      <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-slate-900/95 border-r border-slate-800 backdrop-blur-xl flex flex-col justify-between transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Brand Header */}
-        <div>
-          <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-800">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
-              <Zap className="w-5 h-5 fill-current" />
+    >
+      {/* Brand Header */}
+      <div>
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-600/30">
+              <Radio className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-bold text-white tracking-tight text-base block leading-none">
-                ReachInbox
-              </span>
-              <span className="text-[11px] font-medium text-slate-400 block mt-1 tracking-wider uppercase">
-                Email Scheduler
+              <h1 className="text-sm font-bold text-white tracking-tight leading-none flex items-center gap-1.5 font-sans">
+                OUTBOX <span className="text-[10px] font-mono font-normal text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">v1.0</span>
+              </h1>
+              <span className="text-[11px] font-mono text-muted-foreground mt-0.5 block">
+                Email Queue Engine
               </span>
             </div>
           </div>
+        </div>
 
-          {/* Navigation Links */}
-          <nav className="p-4 space-y-1.5">
-            {navItems.map((item) => {
-              const isActive = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    onSelectTab(item.id);
-                    onCloseMobile();
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                  }`}
-                >
-                  <div
-                    className={`${
-                      isActive ? 'text-indigo-400' : 'text-slate-400'
-                    }`}
+        {/* Navigation Groups */}
+        <div className="p-4 space-y-6">
+          {/* Main Navigation */}
+          <div>
+            <div className="px-3 mb-2 flex items-center gap-2">
+              <span className="w-3 h-px bg-white/20" />
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Navigation
+              </span>
+            </div>
+
+            <nav className="space-y-1">
+              {mainNavItems.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onTabChange(item.id)}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all group',
+                      isActive
+                        ? 'bg-indigo-600/15 text-white border border-indigo-500/30 shadow-sm'
+                        : 'text-muted-foreground hover:text-slate-200 hover:bg-white/[0.03]'
+                    )}
                   >
-                    {item.icon}
-                  </div>
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                    <div className="flex items-center gap-3">
+                      <span className={cn('transition-colors', isActive ? 'text-indigo-400' : 'text-slate-400 group-hover:text-slate-200')}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </div>
 
-        {/* Footer info badge */}
-        <div className="p-4 border-t border-slate-800">
-          <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl flex items-center gap-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <div className="flex-1 min-w-0">
-              <span className="text-xs font-semibold text-slate-200 block truncate">
-                BullMQ + Ethereal SMTP
-              </span>
-              <span className="text-[11px] text-slate-500 block truncate flex items-center gap-1">
-                <Server className="w-3 h-3" /> Redis + Postgres
+                    <div className="flex items-center gap-2">
+                      {item.badge && (
+                        <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">
+                          {item.badge}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-mono text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {item.shortcut}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Monitoring Navigation */}
+          <div>
+            <div className="px-3 mb-2 flex items-center gap-2">
+              <span className="w-3 h-px bg-white/20" />
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Telemetry
               </span>
             </div>
+
+            <nav className="space-y-1">
+              {monitoringItems.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onTabChange(item.id)}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all group',
+                      isActive
+                        ? 'bg-indigo-600/15 text-white border border-indigo-500/30 shadow-sm'
+                        : 'text-muted-foreground hover:text-slate-200 hover:bg-white/[0.03]'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={cn('transition-colors', isActive ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-200')}>
+                        {item.icon}
+                      </span>
+                      <span>{item.label}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        {item.badge}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
         </div>
-      </aside>
-    </>
+      </div>
+
+      {/* Infrastructure Status Footer */}
+      <div className="p-4 border-t border-border bg-surface-elevated/40">
+        <div className="p-3 bg-background border border-border rounded-lg space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-indigo-400" /> Worker Threading
+            </span>
+            <span className="text-[11px] font-mono font-bold text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">
+              {workerConcurrency} Concurrency
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 text-[11px] border-t border-border">
+            <span className="text-muted-foreground font-mono text-[10px]">Redis BullMQ:</span>
+            <span className="text-emerald-400 font-mono text-[10px] flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Connected
+            </span>
+          </div>
+        </div>
+      </div>
+    </aside>
   );
 };
