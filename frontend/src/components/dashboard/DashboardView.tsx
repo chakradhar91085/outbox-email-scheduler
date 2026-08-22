@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Campaign, QueueStatus } from '../../types';
 import { api } from '../../services/api';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -35,7 +35,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isFetchingRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+
   const fetchData = async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       if (isInitial) {
         setLoading(true);
@@ -47,33 +54,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         api.getCampaigns(token),
         api.getQueueStatus(token),
       ]);
-      setCampaigns(campaignsData);
-      setQueueStatus(queueData);
+      if (mountedRef.current) {
+        setCampaigns(campaignsData);
+        setQueueStatus(queueData);
+      }
     } catch (err: any) {
-      if (isInitial) {
-        setError(err.message || 'Failed to load dashboard data');
-      } else {
-        console.warn('[DashboardView] Background polling error:', err.message);
+      if (mountedRef.current) {
+        if (isInitial) {
+          setError(err.message || 'Failed to load dashboard data');
+        } else {
+          console.warn('[DashboardView] Background polling error:', err.message);
+        }
       }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+      isFetchingRef.current = false;
     }
   };
 
-  // Initial Fetch
+  // Immediate fetch + 2-second live background polling lifecycle
   useEffect(() => {
+    mountedRef.current = true;
     fetchData(true);
-  }, [token]);
 
-  // Periodic Background Polling (every 4 seconds) with cleanup
-  useEffect(() => {
-    const intervalId = setInterval(() => {
+    timerRef.current = setInterval(() => {
       fetchData(false);
-    }, 4000);
+    }, 2000);
 
     return () => {
-      clearInterval(intervalId);
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [token]);
 

@@ -39,7 +39,14 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
   const emailsRef = useRef<Email[]>([]);
   emailsRef.current = emails;
 
+  const isFetchingRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+
   const fetchEmails = async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       if (isInitial) {
         setLoading(true);
@@ -56,18 +63,25 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
         },
         token
       );
-      setEmails(res.emails);
-      setTotalPages(res.pagination.totalPages);
-      setTotalItems(res.pagination.total);
+      if (mountedRef.current) {
+        setEmails(res.emails);
+        setTotalPages(res.pagination.totalPages);
+        setTotalItems(res.pagination.total);
+      }
     } catch (err: any) {
-      if (isInitial) {
-        setError(err.message || 'Failed to fetch emails');
-      } else {
-        console.warn('[EmailsListView] Background polling error:', err.message);
+      if (mountedRef.current) {
+        if (isInitial) {
+          setError(err.message || 'Failed to fetch emails');
+        } else {
+          console.warn('[EmailsListView] Background polling error:', err.message);
+        }
       }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+      isFetchingRef.current = false;
     }
   };
 
@@ -76,12 +90,14 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
     fetchEmails(true);
   }, [statusFilter, page, limit, token]);
 
-  // Periodic Background Polling (every 4 seconds) if there are active emails
+  // Periodic Background Polling (every 2 seconds) if there are active emails
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    mountedRef.current = true;
+
+    timerRef.current = setInterval(() => {
       const currentList = emailsRef.current;
       const hasActive =
-        currentList.length > 0 &&
+        currentList.length === 0 ||
         currentList.some(
           (e) => e.status === 'PENDING' || e.status === 'PROCESSING'
         );
@@ -89,10 +105,14 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
       if (hasActive || statusFilter === 'PENDING' || statusFilter === 'PROCESSING' || statusFilter === 'ALL') {
         fetchEmails(false);
       }
-    }, 4000);
+    }, 2000);
 
     return () => {
-      clearInterval(intervalId);
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [statusFilter, page, limit, searchQuery, token]);
 

@@ -36,7 +36,14 @@ export const CampaignsListView: React.FC<CampaignsListViewProps> = ({
   const campaignsRef = useRef<Campaign[]>([]);
   campaignsRef.current = campaigns;
 
+  const isFetchingRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+
   const fetchCampaigns = async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       if (isInitial) {
         setLoading(true);
@@ -45,30 +52,35 @@ export const CampaignsListView: React.FC<CampaignsListViewProps> = ({
       }
       setError(null);
       const data = await api.getCampaigns(token);
-      setCampaigns(data);
+      if (mountedRef.current) {
+        setCampaigns(data);
+      }
     } catch (err: any) {
-      if (isInitial) {
-        setError(err.message || 'Failed to fetch campaigns');
-      } else {
-        console.warn('[CampaignsListView] Background polling error:', err.message);
+      if (mountedRef.current) {
+        if (isInitial) {
+          setError(err.message || 'Failed to fetch campaigns');
+        } else {
+          console.warn('[CampaignsListView] Background polling error:', err.message);
+        }
       }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+      isFetchingRef.current = false;
     }
   };
 
-  // Initial Fetch
+  // Immediate fetch + 2-second background polling lifecycle
   useEffect(() => {
+    mountedRef.current = true;
     fetchCampaigns(true);
-  }, [token]);
 
-  // Periodic Background Polling (every 4 seconds) if any campaign has active emails
-  useEffect(() => {
-    const intervalId = setInterval(() => {
+    timerRef.current = setInterval(() => {
       const currentList = campaignsRef.current;
       const hasActive =
-        currentList.length > 0 &&
+        currentList.length === 0 ||
         currentList.some(
           (c) => (c.pendingEmails && c.pendingEmails > 0) || (c.processingEmails && c.processingEmails > 0)
         );
@@ -76,10 +88,14 @@ export const CampaignsListView: React.FC<CampaignsListViewProps> = ({
       if (hasActive) {
         fetchCampaigns(false);
       }
-    }, 4000);
+    }, 2000);
 
     return () => {
-      clearInterval(intervalId);
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [token]);
 

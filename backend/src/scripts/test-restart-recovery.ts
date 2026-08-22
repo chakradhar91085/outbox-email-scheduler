@@ -186,6 +186,11 @@ async function runAudit() {
   const startWait = Date.now();
 
   while (!jobProcessed && Date.now() - startWait < maxWaitMs) {
+    const checkDb = await prisma.email.findUnique({ where: { id: emailRecord.id } });
+    if (checkDb && checkDb.status === EmailStatus.SENT) {
+      jobProcessed = true;
+      break;
+    }
     await sleep(500);
   }
 

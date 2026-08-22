@@ -37,14 +37,20 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
 
-  // Default start time: current time + 1 minute formatted for datetime-local
-  const getDefaultStartTime = () => {
-    const d = new Date(Date.now() + 60 * 1000);
+  // Helper to format Date for datetime-local
+  const formatForDateTimeLocal = (date: Date) => {
+    const d = new Date(date.getTime());
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
   };
 
+  const getDefaultStartTime = () => formatForDateTimeLocal(new Date(Date.now() + 60 * 1000));
+
   const [startTimeStr, setStartTimeStr] = useState(getDefaultStartTime());
+
+  const setPresetOffset = (offsetSeconds: number) => {
+    setStartTimeStr(formatForDateTimeLocal(new Date(Date.now() + offsetSeconds * 1000)));
+  };
   const [delaySeconds, setDelaySeconds] = useState(10);
   const [hourlyLimit, setHourlyLimit] = useState(100);
 
@@ -436,6 +442,36 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
                 onChange={(e) => setStartTimeStr(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition-colors"
               />
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setPresetOffset(0)}
+                  className="px-2 py-0.5 rounded bg-surface-elevated hover:bg-surface-highlight border border-border text-[10px] font-mono text-slate-300 hover:text-white transition-colors"
+                >
+                  ⚡ Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetOffset(30)}
+                  className="px-2 py-0.5 rounded bg-surface-elevated hover:bg-surface-highlight border border-border text-[10px] font-mono text-slate-300 hover:text-white transition-colors"
+                >
+                  +30s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetOffset(60)}
+                  className="px-2 py-0.5 rounded bg-surface-elevated hover:bg-surface-highlight border border-border text-[10px] font-mono text-slate-300 hover:text-white transition-colors"
+                >
+                  +1m
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetOffset(300)}
+                  className="px-2 py-0.5 rounded bg-surface-elevated hover:bg-surface-highlight border border-border text-[10px] font-mono text-slate-300 hover:text-white transition-colors"
+                >
+                  +5m
+                </button>
+              </div>
             </div>
 
             <div>

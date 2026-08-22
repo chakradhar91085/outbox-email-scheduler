@@ -267,27 +267,17 @@ To accumulate all sent emails in one permanent test inbox across restarts:
 
 ---
 
-## 🚀 Running Locally
+## 🚀 Running Locally (4-Terminal Setup)
 
-### 1. Clone & Start Infrastructure (PostgreSQL & Redis)
+### Terminal 1 — Infrastructure (PostgreSQL & Redis)
 ```bash
-git clone https://github.com/chakradhar91085/outbox-email-scheduler.git
-cd outbox-email-scheduler
-
-# Start Docker containers
+# In project root:
 docker compose up -d
 docker compose ps
 ```
+> Starts PostgreSQL on port `5432` and Redis on port `6379`.
 
-### 2. Configure Environment Files
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-# Add your Clerk credentials to backend/.env and frontend/.env
-```
-
-### 3. Start Backend API Server
-In Terminal 1:
+### Terminal 2 — Backend REST API
 ```bash
 cd backend
 npm install
@@ -295,76 +285,46 @@ npx prisma generate
 npx prisma db push
 npm run dev
 ```
-> API running at: `http://localhost:5000`
+> Express REST API listening on `http://localhost:5000` (does not start worker).
 
-### 4. Start Dedicated Email Worker
-In Terminal 2:
+### Terminal 3 — Dedicated BullMQ Email Worker
 ```bash
 cd backend
 npm run worker
 ```
-> Worker running with `5` concurrent threads.
+> Dedicated BullMQ consumer listening on `email-sending` queue with `5` concurrent execution slots.
 
-### 5. Start Frontend Application
-In Terminal 3:
+### Terminal 4 — Frontend Dashboard
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-> Frontend running at: `http://localhost:5173`
-
----
-
-## ☁️ Cloud Deployment Guide (Vercel & Render)
-
-### 1. Database & Queue (Managed PostgreSQL & Redis)
-- **PostgreSQL**: Create a managed PostgreSQL database (e.g. Render PostgreSQL, Supabase, Neon) and copy the connection string (`DATABASE_URL`).
-- **Redis**: Create a managed Redis instance (e.g. Render Redis, Upstash, Redis Cloud) and copy the connection string (`REDIS_URL`).
-
-### 2. Backend API Deployment (Render Web Service)
-- **Root Directory**: `backend`
-- **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm start`
-- **Health Check Path**: `/health`
-
-### 3. Dedicated Worker Deployment (Render Background Worker)
-- **Root Directory**: `backend`
-- **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm run worker:prod`
-
-### 4. Frontend Deployment (Vercel)
-- **Root Directory**: `frontend`
-- **Framework Preset**: `Vite`
-- **Build Command**: `npm run build`
-- **Output Directory**: `dist`
-- **Environment Variables**:
-  - `VITE_CLERK_PUBLISHABLE_KEY`: `pk_test_...`
-  - `VITE_API_URL`: `http://localhost:5000` (or production backend URL)
+> React + Vite UI running on `http://localhost:5173`.
 
 ---
 
 ## 📹 Demo Instructions
 
-Follow these steps to record the 5-minute assignment demo video:
+Follow these steps to record the assignment demo video:
 
 1. **Sign In**: Navigate to `http://localhost:5173`, click **Start Free Trial** / **Sign In**, and sign in via Google OAuth with Clerk.
 2. **Create Scheduled Campaign**:
    - Go to **Schedule Campaign**.
    - Paste 3–5 recipient emails (or upload a CSV).
-   - Set a start time **1–2 minutes in the future** with a **5-second delay**.
+   - Set a start time (or click **+30s** / **+1m**) with a **5-second stagger delay**.
    - Click **Schedule Campaign**.
 3. **Demonstrate Scheduled State**:
-   - View the **All Campaigns** and **Delivery Logs** tabs.
-   - Show all emails in `PENDING` status with their exact future scheduled timestamps.
+   - The UI automatically opens the Campaign Audit & Timeline modal and initiates live 2-second polling.
+   - Show all emails in `PENDING` status with their exact chronological scheduled timestamps.
 4. **Demonstrate Restart Persistence**:
-   - In Terminal 2, stop the worker process (`Ctrl + C`).
+   - In Terminal 3, stop the worker daemon (`Ctrl + C`).
    - Show that the API server and Redis remain healthy while the worker is offline.
    - Wait until the scheduled start time is reached.
    - Restart the worker daemon (`npm run worker`).
-   - Observe that the worker immediately resumes, processes the due jobs, and dispatches them sequentially with the 5s delay.
+   - Observe that the worker immediately resumes, processes the due jobs, and dispatches them sequentially with the 5s delay without creating duplicates.
 5. **Demonstrate Sent State & Previews**:
-   - Show the dashboard updating live via 3s polling as emails move from `PENDING` $\rightarrow$ `PROCESSING` $\rightarrow$ `SENT`.
+   - Show the dashboard updating live via 2s polling as emails move from `PENDING` $\rightarrow$ `PROCESSING` $\rightarrow$ `SENT`.
    - Click an Ethereal preview link in the Delivery Logs table to view the rendered HTML email in Ethereal's web viewer.
 6. **Bonus (Rate Limiting Demonstration)**:
    - Create a campaign with an hourly limit of `2` emails/hr for a specific sender.
@@ -378,13 +338,13 @@ Follow these steps to record the 5-minute assignment demo video:
 
 ---
 
-## 💡 Assumptions, Shortcuts, and Trade-offs
+## 💡 Architecture & Key Design Decisions
 
-1. **Ethereal Test SMTP**: Used for safe email testing and preview URL generation without spamming real inboxes. In enterprise production, the provider abstraction allows switching to Amazon SES, SendGrid, or Resend.
-2. **Live Polling over WebSockets**: The dashboard uses a 3-second polling interval for active campaigns. Polling was chosen to minimize WebSocket connection state complexity and ensure 100% resilience across serverless/container restarts.
-3. **Hourly Window Buckets**: Per-sender hourly rate limiting uses hourly boundary buckets (`floor(now / 3600000) * 3600000`) for atomic Redis Lua execution with $O(1)$ memory overhead per sender.
-4. **Standalone Worker Architecture**: The worker is decoupled into a dedicated Node.js process so that heavy SMTP and queue workloads never block HTTP API request throughput.
-5. **Provider Abstraction**: Ethereal SMTP remains the primary default implementation required for evaluating this assessment; optional providers exist solely for deployment portability on cloud hosts where outbound SMTP ports are blocked.
+1. **Deterministic Stagger Scheduling**: Scheduled timestamps are computed as $T_{\text{effective}} + i \times \text{delayMs}$. If a requested start time is in the past, $T_{\text{effective}}$ is anchored to `Date.now()` so stagger spacing between recipients is always preserved.
+2. **Dedicated Worker Daemon**: Decoupled from the Express REST API into a separate process (`npm run worker`) so that heavy SMTP network I/O never degrades API responsiveness.
+3. **Smart 2-Second Live Polling**: The UI polls every 2 seconds with in-flight request guarding (preventing overlapping fetches) and automatically terminates polling when all emails reach terminal states (`SENT` / `FAILED`).
+4. **Ethereal Test SMTP**: Used for safe email testing and preview URL generation without spamming real inboxes.
+5. **Idempotency & Deduplication**: Each BullMQ job is keyed with `jobId: email.id`. In the worker, emails already marked `SENT` in PostgreSQL are safely skipped, preventing duplicate deliveries during retries or restarts.
 
 ---
 

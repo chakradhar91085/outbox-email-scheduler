@@ -20,8 +20,11 @@ export class CampaignService {
   public static async createCampaign(input: CreateCampaignInput) {
     const { recipients, subject, body, sender, startTime, delaySeconds, hourlyLimit } = input;
 
-    const baseTimeMs = startTime.getTime();
-    const delayMs = delaySeconds * 1000;
+    const nowMs = Date.now();
+    const requestedStartMs = startTime.getTime();
+    // If requested start time is in the past (e.g. immediate start or form delay), anchor to now so stagger delays are preserved
+    const effectiveStartMs = Math.max(nowMs, requestedStartMs);
+    const delayMs = Math.max(0, delaySeconds) * 1000;
 
     // 1. Persist Campaign and all Email records inside PostgreSQL transaction
     const createdCampaign = await prisma.$transaction(async (tx) => {
@@ -31,7 +34,7 @@ export class CampaignService {
           subject,
           body,
           sender,
-          startTime,
+          startTime: new Date(effectiveStartMs),
           delaySeconds,
           hourlyLimit,
         },
@@ -39,7 +42,7 @@ export class CampaignService {
 
       // Step B: Prepare Email records with calculated staggered scheduledAt
       const emailsData = recipients.map((recipientEmail, index) => {
-        const scheduledTimeMs = baseTimeMs + index * delayMs;
+        const scheduledTimeMs = effectiveStartMs + index * delayMs;
         return {
           campaignId: campaign.id,
           recipientEmail: recipientEmail.trim(),

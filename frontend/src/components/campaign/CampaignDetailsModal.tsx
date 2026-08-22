@@ -35,7 +35,14 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
   const campaignRef = useRef<Campaign | null>(null);
   campaignRef.current = campaign;
 
+  const isFetchingRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+
   const fetchDetails = async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
     try {
       if (isInitial) {
         setLoading(true);
@@ -44,61 +51,74 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
       }
       setError(null);
       const data = await api.getCampaignById(campaignId, token);
-      setCampaign(data);
+      if (mountedRef.current) {
+        setCampaign(data);
+
+        // Check if any email is still pending or processing
+        const hasActive =
+          data.emails &&
+          data.emails.some(
+            (e) => e.status === 'PENDING' || e.status === 'PROCESSING'
+          );
+        setIsPollingActive(Boolean(hasActive));
+
+        // If no active emails, clear timer
+        if (!hasActive && timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }
     } catch (err: any) {
-      if (isInitial) {
-        setError(err.message || 'Failed to load campaign details');
-      } else {
-        console.warn('[CampaignDetailsModal] Background polling error:', err.message);
+      if (mountedRef.current) {
+        if (isInitial) {
+          setError(err.message || 'Failed to load campaign details');
+        } else {
+          console.warn('[CampaignDetailsModal] Background polling sync error:', err.message);
+        }
       }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+      isFetchingRef.current = false;
     }
   };
 
-  // Initial Fetch
+  // Immediate fetch + 2-second polling lifecycle
   useEffect(() => {
+    mountedRef.current = true;
     fetchDetails(true);
-  }, [campaignId, token]);
 
-  // Live Polling Effect (3-second interval)
-  useEffect(() => {
-    const hasActiveEmails =
-      !campaign ||
-      (campaign.emails &&
-        campaign.emails.some(
-          (e) => e.status === 'PENDING' || e.status === 'PROCESSING'
-        ));
-
-    if (!hasActiveEmails) {
-      setIsPollingActive(false);
-      return;
-    }
-
-    setIsPollingActive(true);
-
-    const intervalId = setInterval(() => {
+    // Single stable 2000ms polling interval
+    timerRef.current = setInterval(() => {
       const current = campaignRef.current;
-      const stillActive =
+      const shouldPoll =
         !current ||
         (current.emails &&
           current.emails.some(
             (e) => e.status === 'PENDING' || e.status === 'PROCESSING'
           ));
 
-      if (stillActive) {
+      if (shouldPoll) {
         fetchDetails(false);
       } else {
         setIsPollingActive(false);
-        clearInterval(intervalId);
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
       }
-    }, 3000);
+    }, 2000);
 
     return () => {
-      clearInterval(intervalId);
+      mountedRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [campaign?.id, campaign?.emails?.map((e) => e.status).join(','), token]);
+  }, [campaignId, token]);
 
   const pendingCount = campaign?.emails?.filter((e) => e.status === 'PENDING').length || 0;
   const processingCount = campaign?.emails?.filter((e) => e.status === 'PROCESSING').length || 0;
@@ -122,7 +142,7 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
               {isPollingActive ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live Polling (3s)
+                  Live Polling (2s)
                 </span>
               ) : isFullyCompleted ? (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-mono text-indigo-400">
@@ -295,7 +315,7 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
           <span className="text-muted-foreground text-[11px]">
             {isFullyCompleted
               ? '✨ All emails have been delivered or processed.'
-              : '⚡ Auto-refreshing every 3s as emails are processed by BullMQ.'}
+              : '⚡ Auto-refreshing every 2s as emails are processed by BullMQ.'}
           </span>
           <button
             onClick={onClose}
