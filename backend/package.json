@@ -10,11 +10,14 @@
     "dev": "tsx watch src/index.ts",
     "worker": "tsx src/workers/email.worker.ts",
     "worker:prod": "node dist/workers/email.worker.js",
-    "build": "prisma generate && prisma migrate deploy && tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/index.js",
+    "start:api": "node dist/index.js",
+    "start:worker": "node dist/workers/email.worker.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "railway:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@clerk/express": "^2.1.61",

@@ -3,11 +3,21 @@ import dotenv from 'dotenv';
 // Load .env before any module reads process.env (Clerk SDK reads CLERK_* directly)
 dotenv.config();
 
+function parseFrontendUrls(...rawValues: Array<string | undefined>): string[] {
+  const urls = rawValues
+    .flatMap((value) => (value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(urls));
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/email_scheduler?schema=public',
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   frontendUrl: process.env.FRONTEND_URL || '',
+  frontendUrls: parseFrontendUrls(process.env.FRONTEND_URLS, process.env.FRONTEND_URL),
   workerConcurrency: Math.max(1, parseInt(process.env.WORKER_CONCURRENCY || '5', 10)),
   
   // Rate limit window in milliseconds (Default: 1 hour = 3600000 ms)

@@ -10,9 +10,15 @@ import { authRouter } from './routes/auth.routes';
 
 const app = express();
 
-// Configurable CORS supporting Vercel deployments, custom frontend domains, and localhost
-const allowedOrigins = config.frontendUrl
-  ? [config.frontendUrl, /^https:\/\/.*\.vercel\.app$/, 'http://localhost:5173', 'http://localhost:3000']
+const defaultLocalOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+];
+
+const configuredOrigins = [...config.frontendUrls, ...defaultLocalOrigins];
+const allowedOrigins = configuredOrigins.length > 0
+  ? Array.from(new Set([...configuredOrigins, /^https:\/\/.*\.vercel\.app$/]))
   : true;
 
 app.use(cors({
