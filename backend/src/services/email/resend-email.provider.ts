@@ -22,10 +22,14 @@ export class ResendEmailProvider implements IEmailProvider {
       );
     }
 
-    const fromAddress = options.from || this.defaultSender;
+    // Resend only accepts verified domains: keep the campaign's display name but send from
+    // the verified SMTP_FROM address, and route replies to the campaign sender.
+    const verifiedAddress = this.defaultSender.match(/<([^>]+)>/)?.[1] || this.defaultSender;
+    const displayName = options.from?.match(/^\s*"?([^"<]+?)"?\s*</)?.[1];
 
     const payload = {
-      from: fromAddress,
+      from: displayName ? `${displayName} <${verifiedAddress}>` : this.defaultSender,
+      reply_to: options.from || undefined,
       to: [options.to],
       subject: options.subject,
       text: options.text,
