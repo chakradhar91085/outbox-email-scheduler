@@ -3,10 +3,7 @@ import { LandingNavigation } from './LandingNavigation';
 import { LandingHero } from './LandingHero';
 import { LandingFeatures } from './LandingFeatures';
 import { LandingHowItWorks } from './LandingHowItWorks';
-import { LandingArchitecture } from './LandingArchitecture';
-import { LandingMetrics } from './LandingMetrics';
 import { LandingTechStack } from './LandingTechStack';
-import { LandingDevelopers } from './LandingDevelopers';
 import { LandingCTA } from './LandingCTA';
 import { LandingFooter } from './LandingFooter';
 
@@ -43,13 +40,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
         <LandingHowItWorks />
 
-        <LandingArchitecture />
-
-        <LandingMetrics />
-
         <LandingTechStack />
-
-        <LandingDevelopers />
 
         <LandingCTA
           onGetStarted={onGetStarted}

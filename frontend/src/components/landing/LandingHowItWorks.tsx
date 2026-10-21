@@ -12,60 +12,59 @@ interface Step {
 const steps: Step[] = [
   {
     number: 'I',
-    title: 'Connect your audience',
+    title: 'Add your recipients',
     description:
-      'Upload a CSV of leads or paste recipients directly. The parser automatically discovers column headers, validates email regex, and deduplicates leads.',
-    filename: 'campaign.payload.ts',
-    code: `// 1. Client-Side Lead Parser
-const payload = {
-  recipients: [
-    'alice@enterprise.com',
-    'bob@growth.io',
-    'charlie@outreach.org'
-  ],
-  totalLeads: 1000
-};`,
+      'Upload a CSV or paste addresses. The email column is detected automatically, and invalid or duplicate addresses are removed before anything is scheduled.',
+    filename: 'recipients.ts',
+    code: `// 1. Parsed from your CSV in the browser
+const recipients = [
+  'alice@company.com',
+  'bob@startup.io',
+  'carol@agency.co',
+];
+// invalid and duplicate rows are skipped`,
   },
   {
     number: 'II',
-    title: 'Configure template & sender identity',
+    title: 'Write the email',
     description:
-      'Specify multiple sender addresses, customized subject lines, and dynamic outreach body copy for personalized sequences.',
-    filename: 'template.config.ts',
-    code: `// 2. Multi-Sender Identity
-const emailConfig = {
-  sender: 'ReachInbox Outreach <sales@reachinbox.ai>',
-  subject: 'Accelerating cold outreach pipelines',
-  body: 'Hello {{name}}, wanted to connect...'
+      'Set the sender, subject and body. Campaigns from the same sender share one hourly limit, so splitting a send into several campaigns never overshoots it.',
+    filename: 'email.ts',
+    code: `// 2. Campaign content
+const email = {
+  sender: 'ReachInbox Outreach <outreach@reachinbox.ai>',
+  subject: 'Quick question',
+  body: 'Hi, wanted to connect about...',
 };`,
   },
   {
     number: 'III',
-    title: 'Set schedule, stagger delays & quotas',
+    title: 'Set the timing',
     description:
-      'Configure $T_0$ start time, per-email stagger delay (e.g. 5s), and sender hourly rate limits (e.g. 100/hr) with real-time timeline math.',
-    filename: 'schedule.math.ts',
-    code: `// 3. Stagger & Rate Limiter Settings
-const scheduleConfig = {
-  startTime: '2026-08-22T09:00:00.000Z',
-  delaySeconds: 5,
-  hourlyLimit: 100, // Per-sender Redis Lua
-  estimatedDuration: '4995s (~83 min)'
-};`,
+      'Pick a start time, a delay between emails (e.g. 5s) and an hourly limit per sender (e.g. 100/hr). The form previews exactly when the last email will go out.',
+    filename: 'schedule.ts',
+    code: `// 3. Timing and limits
+const schedule = {
+  startTime: '2026-10-21T09:00:00.000Z',
+  delaySeconds: 5,   // gap between emails
+  hourlyLimit: 100,  // per sender
+};
+// 3 recipients -> last email at 09:00:10`,
   },
   {
     number: 'IV',
-    title: 'Distributed BullMQ worker dispatch',
+    title: 'Workers send on time',
     description:
-      'Persisted delayed jobs are consumed by dedicated worker threads and dispatched via pooled SMTP with live status updates.',
+      'Each email is a delayed BullMQ job. When it is due, a worker checks the sender limit, sends it and records the result, retrying if the send fails.',
     filename: 'email.worker.ts',
-    code: `// 4. BullMQ Dedicated Worker
-const worker = new Worker('email-sending', async (job) => {
-  const allowed = await rateLimiter.checkLimit(job.data.sender);
-  if (!allowed) return rescheduleToNextHour(job);
-  
-  await emailService.sendMail(job.data);
-  await db.email.update({ status: 'SENT' });
+    code: `// 4. BullMQ worker (simplified)
+new Worker('email-sending', async (job) => {
+  const { allowed } = await rateLimiter
+    .checkAndConsume(sender, hourlyLimit);
+  if (!allowed) return moveToNextWindow(job);
+
+  await provider.sendEmail(email);
+  await prisma.email.update({ status: 'SENT' });
 }, { concurrency: 5 });`,
   },
 ];
@@ -104,7 +103,7 @@ export const LandingHowItWorks: React.FC = () => {
         <div className="mb-16 lg:mb-24">
           <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-indigo-400 mb-4">
             <span className="w-8 h-px bg-indigo-500/60" />
-            Execution Lifecycle
+            How It Works
           </span>
           <h2
             className={`text-4xl lg:text-6xl font-bold tracking-tight text-white transition-all duration-700 font-sans ${
@@ -113,7 +112,7 @@ export const LandingHowItWorks: React.FC = () => {
           >
             Four steps.
             <br />
-            <span className="text-muted-foreground font-light">Zero lost emails.</span>
+            <span className="text-muted-foreground font-light">From CSV to inbox.</span>
           </h2>
         </div>
 
@@ -195,7 +194,7 @@ export const LandingHowItWorks: React.FC = () => {
               <div className="px-5 py-3 border-t border-border bg-surface-elevated/60 flex items-center justify-between text-[11px] font-mono text-muted-foreground">
                 <span className="flex items-center gap-2 text-emerald-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  BullMQ Queue Active
+                  BullMQ · email-sending
                 </span>
                 <span>TypeScript 5.x</span>
               </div>

@@ -12,28 +12,28 @@ const features: FeatureItem[] = [
     number: '01',
     title: 'Persistent Delayed Scheduling',
     description:
-      'Zero cron dependencies. Every email is registered as an immutable delayed job in Redis via BullMQ, guaranteeing delivery even after server restarts or network partitions.',
+      'No cron jobs. Each email becomes a BullMQ delayed job stored in Redis, with its record in PostgreSQL, so scheduled sends survive server restarts.',
     visual: 'queue',
   },
   {
     number: '02',
-    title: 'Dedicated Worker Concurrency',
+    title: 'Concurrent Workers',
     description:
-      'Multi-threaded workers consume jobs in parallel without bottlenecking the API server. Configurable concurrency scales to thousands of queued recipients seamlessly.',
+      'A BullMQ worker sends several emails at once (5 by default, configurable). Failed sends retry up to 4 times with exponential backoff before being marked failed.',
     visual: 'workers',
   },
   {
     number: '03',
     title: 'Per-Sender Rate Limiting',
     description:
-      'Atomic Redis Lua token-bucket algorithm enforces per-sender hourly limits across multiple worker instances, automatically rescheduling excess emails into the next valid window.',
+      'An atomic Redis Lua script counts emails per sender in a fixed hourly window, shared across campaigns. Emails over the limit are moved to the next window, not dropped.',
     visual: 'ratelimit',
   },
   {
     number: '04',
-    title: 'CSV Parsing & Live Telemetry',
+    title: 'CSV Upload & Live Tracking',
     description:
-      'Drag-and-drop CSV lead parsing with auto-column detection, staggered interval math, and real-time delivery tracking with live polling and native error inspection.',
+      'Upload a CSV and the email column is found automatically, with invalid and duplicate addresses removed. Track every recipient live, with exact send times and error messages.',
     visual: 'telemetry',
   },
 ];
@@ -85,7 +85,7 @@ function QueueVisual() {
         fill="currentColor"
         opacity="0.6"
       >
-        REDIS PERSISTENCE
+        DELAYED JOBS
       </text>
     </svg>
   );
@@ -234,7 +234,7 @@ export const LandingFeatures: React.FC = () => {
         <div className="mb-16 lg:mb-24">
           <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-indigo-400 mb-4">
             <span className="w-8 h-px bg-indigo-500/60" />
-            Capabilities & Core Architecture
+            Capabilities
           </span>
           <h2
             className={`text-4xl lg:text-6xl font-bold tracking-tight text-white transition-all duration-700 font-sans ${

@@ -122,13 +122,13 @@ export const CampaignsListView: React.FC<CampaignsListViewProps> = ({
         <div>
           <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
             <span className="w-8 h-px bg-indigo-500/50" />
-            Outreach Catalog
+            Campaigns
           </span>
           <h2 className="text-3xl font-bold tracking-tight text-white font-sans">
-            Campaign Management
+            All Campaigns
           </h2>
           <p className="text-xs font-mono text-muted-foreground mt-1">
-            Manage scheduled outreach pipelines, staggered delays, and delivery progress.
+            Every campaign you have scheduled, with live delivery progress.
           </p>
         </div>
 

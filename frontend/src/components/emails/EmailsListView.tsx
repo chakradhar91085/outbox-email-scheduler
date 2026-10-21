@@ -137,11 +137,11 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
         <div>
           <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
             <span className="w-8 h-px bg-indigo-500/50" />
-            Audit Trail
+            Emails
           </span>
           <div className="flex items-center gap-3">
             <h2 className="text-3xl font-bold tracking-tight text-white font-sans">
-              Email Delivery Logs
+              Email Logs
             </h2>
             {isRefreshing && (
               <span className="inline-flex items-center gap-1 text-[11px] font-mono text-indigo-400">
@@ -150,7 +150,7 @@ export const EmailsListView: React.FC<EmailsListViewProps> = ({ token }) => {
             )}
           </div>
           <p className="text-xs font-mono text-muted-foreground mt-1">
-            Real-time audit log of all individual scheduled, sent, and throttled email dispatches.
+            Every email across all campaigns, with its status and any error.
           </p>
         </div>
 

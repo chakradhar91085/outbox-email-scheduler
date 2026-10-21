@@ -117,11 +117,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div>
           <div className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
             <span className="w-8 h-px bg-indigo-500/50" />
-            Outreach Orchestration Engine
+            Dashboard
           </div>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white font-sans">
-            High-throughput email <br className="hidden sm:block" />
-            scheduling & delivery.
+            Your campaigns <br className="hidden sm:block" />
+            at a glance.
           </h2>
         </div>
 
@@ -159,14 +159,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {totalCampaigns}
             </div>
             <div className="text-xs font-mono text-muted-foreground pt-1">
-              Active scheduling pipelines
+              Campaigns created
             </div>
           </div>
 
           {/* Metric 2 */}
           <div className="p-6 lg:p-8 space-y-3 hover:bg-white/[0.015] transition-colors">
             <div className="flex items-center justify-between text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              <span>Total Enqueued</span>
+              <span>Total Emails</span>
               <Mail className="w-4 h-4 text-blue-400" />
             </div>
             <div className="text-4xl lg:text-5xl font-bold text-white tracking-tight">
@@ -182,7 +182,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Metric 3 */}
           <div className="p-6 lg:p-8 space-y-3 hover:bg-white/[0.015] transition-colors">
             <div className="flex items-center justify-between text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              <span>Delivered (Sent)</span>
+              <span>Sent</span>
               <Send className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-4xl lg:text-5xl font-bold text-white tracking-tight flex items-baseline gap-2">
@@ -192,21 +192,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
             </div>
             <div className="text-xs font-mono text-emerald-400/80 pt-1">
-              Confirmed via SMTP transport
+              Successfully delivered
             </div>
           </div>
 
           {/* Metric 4 */}
           <div className="p-6 lg:p-8 space-y-3 hover:bg-white/[0.015] transition-colors">
             <div className="flex items-center justify-between text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              <span>Failures / Throttles</span>
+              <span>Failed</span>
               <AlertTriangle className="w-4 h-4 text-rose-400" />
             </div>
             <div className="text-4xl lg:text-5xl font-bold text-white tracking-tight">
               {failedEmails}
             </div>
             <div className="text-xs font-mono text-muted-foreground pt-1">
-              Exhausted retry threshold
+              Failed after all retries
             </div>
           </div>
         </div>
@@ -219,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center gap-2.5">
               <Activity className="w-4 h-4 text-indigo-400" />
               <h3 className="text-sm font-bold text-white tracking-tight">
-                BullMQ Distributed Queue Telemetry
+                Queue Status
               </h3>
               <span className="text-[10px] font-mono bg-white/5 text-muted-foreground px-2 py-0.5 rounded border border-border">
                 {queueStatus.queueName}
@@ -230,7 +230,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               onClick={() => onNavigate('queue')}
               className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-colors"
             >
-              <span>Inspect Queue Console</span>
+              <span>View Queue</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -272,7 +272,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <h3 className="text-base font-bold text-white tracking-tight">Recent Email Campaigns</h3>
             <p className="text-xs font-mono text-muted-foreground mt-0.5">
-              Live progress and staggered recipient dispatches
+              Live progress for each campaign
             </p>
           </div>
 
@@ -290,7 +290,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Layers className="w-10 h-10 mx-auto text-slate-700 mb-2" />
             <h4 className="text-sm font-semibold text-white">No campaigns active</h4>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              Upload a CSV of leads to initiate your first scheduled outreach campaign.
+              Upload a CSV to schedule your first campaign.
             </p>
             <button
               onClick={() => onNavigate('create-campaign')}

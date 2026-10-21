@@ -1,8 +1,8 @@
 import React from 'react';
 
 const technologiesRow1 = [
-  { name: 'BullMQ', category: 'Distributed Queue' },
-  { name: 'Redis 7', category: 'In-Memory Store' },
+  { name: 'BullMQ', category: 'Job Queue' },
+  { name: 'Redis', category: 'Queue & Rate Limits' },
   { name: 'PostgreSQL 16', category: 'Relational DB' },
   { name: 'Prisma ORM', category: 'Data Layer' },
   { name: 'TypeScript 5.x', category: 'Type Safety' },
@@ -11,9 +11,9 @@ const technologiesRow1 = [
 
 const technologiesRow2 = [
   { name: 'Clerk Auth', category: 'Google OAuth' },
-  { name: 'Nodemailer', category: 'SMTP Transport' },
-  { name: 'Ethereal Email', category: 'Test SMTP' },
-  { name: 'Docker Compose', category: 'Infrastructure' },
+  { name: 'Resend', category: 'Email API' },
+  { name: 'Nodemailer + Ethereal', category: 'Local SMTP Testing' },
+  { name: 'Render', category: 'Hosting' },
   { name: 'React + Vite', category: 'Frontend UI' },
   { name: 'Tailwind CSS', category: 'Styling' },
 ];
@@ -28,14 +28,14 @@ export const LandingTechStack: React.FC = () => {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12 mb-12 text-center">
         <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-indigo-400 mb-3">
           <span className="w-8 h-px bg-indigo-500/60" />
-          Production Stack
+          Tech Stack
           <span className="w-8 h-px bg-indigo-500/60" />
         </span>
         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white font-sans">
           Built with industry-standard technologies.
         </h2>
         <p className="text-xs sm:text-sm font-mono text-muted-foreground mt-2 max-w-lg mx-auto">
-          Every component chosen for high throughput, persistence, and reliability under load.
+          The tools behind the scheduler, the queue and the dashboard.
         </p>
       </div>
 

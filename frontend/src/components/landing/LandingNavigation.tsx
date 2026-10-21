@@ -29,10 +29,7 @@ export const LandingNavigation: React.FC<LandingNavigationProps> = ({
   const navLinks = [
     { label: 'Capabilities', href: '#features' },
     { label: 'Process', href: '#how-it-works' },
-    { label: 'Architecture', href: '#architecture' },
-    { label: 'Live Metrics', href: '#metrics' },
     { label: 'Tech Stack', href: '#tech-stack' },
-    { label: 'Developers', href: '#developers' },
   ];
 
   return (
@@ -58,7 +55,7 @@ export const LandingNavigation: React.FC<LandingNavigationProps> = ({
               </span>
             </div>
             <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">
-              Distributed Outreach Engine
+              Email Campaign Scheduler
             </span>
           </div>
         </a>

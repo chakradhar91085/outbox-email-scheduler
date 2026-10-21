@@ -16,7 +16,14 @@ export const LandingFooter: React.FC = () => {
           </div>
           <span className="font-bold text-white tracking-tight">REACHINBOX EMAIL SCHEDULER</span>
           <span className="text-white/20">|</span>
-          <span>Outbox Labs Assessment</span>
+          <a
+            href="https://github.com/chakradhar91085/outbox-email-scheduler"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-white transition-colors"
+          >
+            Source on GitHub
+          </a>
         </div>
 
         {/* Links & Back to Top */}
@@ -24,11 +31,11 @@ export const LandingFooter: React.FC = () => {
           <a href="#features" className="hover:text-white transition-colors">
             Capabilities
           </a>
-          <a href="#architecture" className="hover:text-white transition-colors">
-            Architecture
+          <a href="#how-it-works" className="hover:text-white transition-colors">
+            How It Works
           </a>
-          <a href="#metrics" className="hover:text-white transition-colors">
-            Telemetry
+          <a href="#tech-stack" className="hover:text-white transition-colors">
+            Tech Stack
           </a>
           <button
             onClick={scrollToTop}

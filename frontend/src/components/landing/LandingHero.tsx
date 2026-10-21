@@ -29,11 +29,11 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   }, []);
 
   const marqueeStats = [
-    { value: '0 Cron Jobs', label: '100% BullMQ Delayed Queues', tag: 'PERSISTENCE' },
-    { value: '5 Workers', label: 'Dedicated Worker Concurrency', tag: 'THROUGHPUT' },
-    { value: '1,000+', label: 'Bulk Enqueue Throughput', tag: 'SCALE' },
-    { value: '100%', label: 'Ethereal SMTP Live Audit', tag: 'DELIVERY' },
-    { value: '< 25ms', label: 'Redis Token-Bucket Latency', tag: 'RATE LIMIT' },
+    { value: '0 Cron Jobs', label: 'Every email is a BullMQ delayed job', tag: 'SCHEDULING' },
+    { value: '5 Parallel', label: 'Concurrent sends per worker', tag: 'CONCURRENCY' },
+    { value: '4 Attempts', label: 'Retries with exponential backoff', tag: 'RELIABILITY' },
+    { value: 'Per-Sender', label: 'Hourly limits enforced in Redis', tag: 'RATE LIMIT' },
+    { value: '2s Refresh', label: 'Live delivery status per recipient', tag: 'TRACKING' },
   ];
 
   return (
@@ -72,7 +72,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-indigo-400">
             <span className="w-8 h-px bg-indigo-500/60" />
             <Zap className="w-3.5 h-3.5" />
-            The engine for modern outreach teams
+            Email campaign scheduler
           </span>
         </div>
 
@@ -111,8 +111,8 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
-            Your high-throughput distributed email job scheduler. Seamlessly persist,
-            queue, and dispatch bulk campaigns with BullMQ, Redis, and dedicated worker concurrency.
+            Schedule a campaign for an exact time, space out every email, and stay under
+            per-sender hourly limits. Built on BullMQ, Redis and PostgreSQL so scheduled emails survive server restarts.
           </p>
 
           {/* Action CTAs */}
@@ -134,7 +134,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 onClick={onGetStarted}
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono uppercase tracking-wider font-bold rounded-full transition-all shadow-xl shadow-indigo-600/30 hover:scale-[1.02] group"
               >
-                <span>Start Free Trial</span>
+                <span>Get Started</span>
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
             )}
@@ -149,7 +149,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
               }}
               className="inline-flex items-center justify-center gap-2 px-7 py-4 bg-surface hover:bg-surface-elevated text-slate-200 text-xs font-mono uppercase tracking-wider font-semibold rounded-full border border-border transition-colors hover:border-white/20"
             >
-              <span>Explore Process</span>
+              <span>How It Works</span>
             </a>
           </div>
         </div>

@@ -30,26 +30,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'dashboard' as NavTab,
       label: 'Dashboard',
       icon: <LayoutDashboard className="w-4 h-4" />,
-      shortcut: '⌘1',
     },
     {
       id: 'create-campaign' as NavTab,
       label: 'New Campaign',
       icon: <PlusCircle className="w-4 h-4" />,
-      shortcut: '⌘2',
       badge: 'Create',
     },
     {
       id: 'campaigns' as NavTab,
       label: 'Campaigns',
       icon: <FolderKanban className="w-4 h-4" />,
-      shortcut: '⌘3',
     },
     {
       id: 'emails' as NavTab,
       label: 'Email Logs',
       icon: <Mail className="w-4 h-4" />,
-      shortcut: '⌘4',
     },
   ];
 
@@ -58,7 +54,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'queue' as NavTab,
       label: 'Queue Monitor',
       icon: <Activity className="w-4 h-4" />,
-      shortcut: '⌘5',
       badge: 'Live',
     },
   ];
@@ -82,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 OUTBOX <span className="text-[10px] font-mono font-normal text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">v1.0</span>
               </h1>
               <span className="text-[11px] font-mono text-muted-foreground mt-0.5 block">
-                Email Queue Engine
+                Email Scheduler
               </span>
             </div>
           </div>
@@ -126,9 +121,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           {item.badge}
                         </span>
                       )}
-                      <span className="text-[10px] font-mono text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {item.shortcut}
-                      </span>
                     </div>
                   </button>
                 );
@@ -141,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-3 mb-2 flex items-center gap-2">
               <span className="w-3 h-px bg-white/20" />
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                Telemetry
+                Monitoring
               </span>
             </div>
 
@@ -185,17 +177,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3 bg-background border border-border rounded-lg space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-indigo-400" /> Worker Threading
+              <Cpu className="w-3.5 h-3.5 text-indigo-400" /> Parallel Sends
             </span>
             <span className="text-[11px] font-mono font-bold text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">
-              {workerConcurrency} Concurrency
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 text-[11px] border-t border-border">
-            <span className="text-muted-foreground font-mono text-[10px]">Redis BullMQ:</span>
-            <span className="text-emerald-400 font-mono text-[10px] flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Connected
+              {workerConcurrency}
             </span>
           </div>
         </div>

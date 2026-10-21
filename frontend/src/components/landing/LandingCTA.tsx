@@ -24,14 +24,14 @@ export const LandingCTA: React.FC<LandingCTAProps> = ({
 
         <div className="space-y-4">
           <span className="text-xs font-mono uppercase tracking-widest text-indigo-400 block">
-            ReachInbox Outreach Engine
+            ReachInbox Scheduler
           </span>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white font-sans">
-            Ready to schedule reliable email outreach?
+            Ready to schedule your first campaign?
           </h2>
           <p className="text-base text-muted-foreground max-w-xl mx-auto font-sans leading-relaxed">
-            Start dispatching bulk cold campaigns with persistent BullMQ queues,
-            dedicated background workers, and atomic per-sender rate limiting today.
+            Sign in with Google, upload a CSV, and watch every email go out
+            on schedule, live.
           </p>
         </div>
 
@@ -41,7 +41,7 @@ export const LandingCTA: React.FC<LandingCTAProps> = ({
               onClick={onOpenDashboard}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-9 py-4 bg-white hover:bg-slate-200 text-[#090a0d] text-xs font-mono uppercase tracking-wider font-bold rounded-full transition-all shadow-xl shadow-white/10 hover:scale-[1.02] group"
             >
-              <span>Launch Dashboard</span>
+              <span>Open Dashboard</span>
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </button>
           ) : (
@@ -49,7 +49,7 @@ export const LandingCTA: React.FC<LandingCTAProps> = ({
               onClick={onGetStarted}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-9 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono uppercase tracking-wider font-bold rounded-full transition-all shadow-xl shadow-indigo-600/30 hover:scale-[1.02] group"
             >
-              <span>Start Free with Google</span>
+              <span>Sign In with Google</span>
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </button>
           )}

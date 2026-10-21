@@ -207,13 +207,13 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
 
         <div>
           <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 block mb-1">
-            Pipeline Initialized
+            Scheduled
           </span>
           <h2 className="text-2xl font-bold text-white tracking-tight font-sans">
             Campaign Scheduled Successfully!
           </h2>
           <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
-            Persisted <strong className="text-white font-mono">{createdSuccess.total} emails</strong> in PostgreSQL and enqueued delayed BullMQ jobs in Redis. First dispatch begins at{' '}
+            <strong className="text-white font-mono">{createdSuccess.total} emails</strong> are scheduled. The first one goes out at{' '}
             <span className="text-indigo-400 font-mono">{createdSuccess.firstTime}</span>.
           </p>
         </div>
@@ -254,13 +254,13 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
       <div className="pb-6 border-b border-border">
         <span className="inline-flex items-center gap-3 text-xs font-mono uppercase tracking-widest text-muted-foreground mb-3">
           <span className="w-8 h-px bg-indigo-500/50" />
-          Campaign Dispatch Wizard
+          New Campaign
         </span>
         <h2 className="text-3xl font-bold tracking-tight text-white font-sans">
-          Schedule Outreach Campaign
+          Schedule a Campaign
         </h2>
         <p className="text-xs font-mono text-muted-foreground mt-1">
-          Upload lead CSVs, configure delivery spacing, and enforce sender rate limits.
+          Add recipients, write your email, and choose when it goes out.
         </p>
       </div>
 
@@ -320,7 +320,7 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
                 {fileName ? fileName : 'Click or drag & drop CSV file'}
               </span>
               <span className="text-xs font-mono text-muted-foreground mt-1 block">
-                Supports auto-column detection (`email`, `recipient`, `mail`)
+                The email column is detected automatically (`email`, `recipient` or `mail`)
               </span>
               <input
                 type="file"
@@ -502,7 +502,7 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
               className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition-colors"
             />
             <span className="text-[11px] font-mono text-muted-foreground mt-1.5 block">
-              Enforced across all campaigns using this sender email via Redis Lua script.
+              Shared by all campaigns from this sender.
             </span>
           </div>
         </div>
@@ -511,9 +511,9 @@ export const CreateCampaignView: React.FC<CreateCampaignViewProps> = ({
         <div className="bg-surface border border-border rounded-2xl p-6 flex flex-col justify-between shadow-sm space-y-4">
           <div>
             <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 block mb-1">
-              Live Schedule Math
+              Preview
             </span>
-            <h4 className="text-sm font-bold text-white tracking-tight">Timeline Estimation</h4>
+            <h4 className="text-sm font-bold text-white tracking-tight">Schedule</h4>
 
             <div className="mt-4 space-y-3 text-xs font-mono">
               <div className="p-3 bg-background border border-border rounded-xl space-y-1">

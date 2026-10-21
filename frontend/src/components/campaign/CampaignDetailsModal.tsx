@@ -135,14 +135,14 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
           <div className="min-w-0 pr-4">
             <div className="flex items-center gap-2.5">
               <span className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 block">
-                Campaign Audit & Timeline
+                Campaign Details
               </span>
 
               {/* Dynamic Live Polling Badge */}
               {isPollingActive ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live Polling (2s)
+                  Live (2s)
                 </span>
               ) : isFullyCompleted ? (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-mono text-indigo-400">
@@ -241,7 +241,7 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
-                      Recipient Delivery Queue ({totalEmails} total)
+                      Recipients ({totalEmails})
                     </span>
                     {isRefreshing && (
                       <span className="text-[10px] font-mono text-indigo-400 flex items-center gap-1">
@@ -314,8 +314,8 @@ export const CampaignDetailsModal: React.FC<CampaignDetailsModalProps> = ({
         <div className="p-4 border-t border-border bg-surface/80 flex items-center justify-between text-xs font-mono">
           <span className="text-muted-foreground text-[11px]">
             {isFullyCompleted
-              ? '✨ All emails have been delivered or processed.'
-              : '⚡ Auto-refreshing every 2s as emails are processed by BullMQ.'}
+              ? '✨ All emails have been processed.'
+              : '⚡ Refreshing every 2s while emails are sending.'}
           </span>
           <button
             onClick={onClose}
