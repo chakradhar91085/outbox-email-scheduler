@@ -1,8 +1,10 @@
 # 🚀 ReachInbox Hiring Assignment – Full-stack Email Job Scheduler
 
-Production-grade, distributed email job scheduler service and interactive dashboard built for **ReachInbox.ai** (Outbox Labs).
+Full-stack email campaign scheduler and live dashboard, built for the **ReachInbox.ai** (Outbox Labs) hiring assignment.
 
-Designed for high-throughput, reliable scheduling and sending of cold outreach emails at scale using persistent delayed queues and dedicated background workers — **strictly without cron jobs**.
+**🌐 Live demo:** https://outbox-scheduler-web.onrender.com
+
+Schedule a campaign for an exact time, space out every email, and stay under per-sender hourly limits. Every email is a BullMQ delayed job backed by Redis and PostgreSQL — **no cron jobs** — so scheduled emails survive server restarts.
 
 ---
 
