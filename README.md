@@ -314,7 +314,7 @@ Everything — frontend, API, worker, PostgreSQL and Redis — is defined in [`r
 | Service | Render type | URL |
 | :--- | :--- | :--- |
 | `outbox-scheduler-web` | Static site (React/Vite) | `https://outbox-scheduler-web.onrender.com` |
-| `outbox-scheduler-api` | Web service (Express API + BullMQ worker in one process) | `https://outbox-scheduler-api.onrender.com` |
+| `outbox-scheduler-api` | Web service (Express API + BullMQ worker in one process) | `https://outbox-scheduler-api-oj4g.onrender.com` |
 | `outbox-scheduler-redis` | Key Value (Redis, `noeviction`) | internal |
 | `outbox-scheduler-db` | PostgreSQL | internal |
 

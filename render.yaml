@@ -5,6 +5,7 @@ services:
   - type: web
     runtime: node
     name: outbox-scheduler-api
+    region: singapore
     plan: free
     rootDir: backend
     buildCommand: npm ci && npm run build
@@ -48,17 +49,19 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://outbox-scheduler-api.onrender.com
+        value: https://outbox-scheduler-api-oj4g.onrender.com
       - key: VITE_CLERK_PUBLISHABLE_KEY
         sync: false
 
   - type: keyvalue
     name: outbox-scheduler-redis
+    region: singapore
     plan: free
     maxmemoryPolicy: noeviction # required by BullMQ
     ipAllowList: [] # internal connections only
 
 databases:
   - name: outbox-scheduler-db
+    region: singapore
     plan: free
     databaseName: email_scheduler
