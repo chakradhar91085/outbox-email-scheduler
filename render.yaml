@@ -1,0 +1,64 @@
+# Render Blueprint — everything on the free tier.
+# Deploy: https://render.com/deploy?repo=https://github.com/chakradhar91085/outbox-email-scheduler
+services:
+  # Express API + BullMQ worker in one process (Render free tier has no background workers)
+  - type: web
+    runtime: node
+    name: outbox-scheduler-api
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: RUN_WORKER_IN_API
+        value: "true"
+      - key: FRONTEND_URL
+        value: https://outbox-scheduler-web.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: outbox-scheduler-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: outbox-scheduler-redis
+          property: connectionString
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      # Free web services block outbound SMTP (25/465/587), so Ethereal can't be used here
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_FROM
+        value: ReachInbox Scheduler <onboarding@resend.dev>
+
+  - type: web
+    runtime: static
+    name: outbox-scheduler-web
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://outbox-scheduler-api.onrender.com
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+
+  - type: keyvalue
+    name: outbox-scheduler-redis
+    plan: free
+    maxmemoryPolicy: noeviction # required by BullMQ
+    ipAllowList: [] # internal connections only
+
+databases:
+  - name: outbox-scheduler-db
+    plan: free
+    databaseName: email_scheduler

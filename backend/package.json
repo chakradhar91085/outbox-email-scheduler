@@ -16,8 +16,7 @@
     "start:worker": "node dist/workers/email.worker.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:push": "prisma db push",
-    "railway:migrate": "prisma migrate deploy"
+    "prisma:push": "prisma db push"
   },
   "dependencies": {
     "@clerk/express": "^2.1.61",

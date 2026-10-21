@@ -18,8 +18,13 @@ const defaultLocalOrigins = [
 
 const configuredOrigins = [...config.frontendUrls, ...defaultLocalOrigins];
 const allowedOrigins = configuredOrigins.length > 0
-  ? Array.from(new Set([...configuredOrigins, /^https:\/\/.*\.vercel\.app$/]))
+  ? Array.from(new Set(configuredOrigins))
   : true;
+
+// Single-process mode for hosts without background workers (Render free tier)
+if (process.env.RUN_WORKER_IN_API === 'true') {
+  require('./workers/email.worker');
+}
 
 app.use(cors({
   origin: allowedOrigins,

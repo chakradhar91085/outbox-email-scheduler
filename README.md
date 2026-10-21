@@ -20,7 +20,7 @@ Designed for high-throughput, reliable scheduling and sending of cold outreach e
 - [Environment Variables](#-environment-variables)
 - [Ethereal Email Setup](#-ethereal-email-setup)
 - [Running Locally](#-running-locally)
-- [Railway Deployment Guide](#-railway-deployment-guide)
+- [Render Deployment Guide](#️-render-deployment-guide-free-tier)
 - [Demo Instructions](#-demo-instructions)
 - [Demo Video](#-demo-video)
 - [Assumptions, Shortcuts, and Trade-offs](#-assumptions-shortcuts-and-trade-offs)
@@ -247,7 +247,7 @@ The system is architected for **zero in-memory state loss** across server or wor
 
 > **Important**: **Ethereal SMTP is the default email provider used for assignment evaluation and demonstration.**
 >
-> On Railway, this default is only safe on plans that allow outbound SMTP. As of September 4, 2026, Railway documents that SMTP is available only on the Pro plan and above; Free, Trial, and Hobby plans must use a transactional email provider with an HTTPS API instead.
+> On Render's free tier outbound SMTP is blocked, so the hosted deployment uses `EMAIL_PROVIDER=resend` (see the Render Deployment Guide).
 
 ### Option A: Automatic Test Account Generation (Zero-Config Default)
 If you leave `SMTP_USER` and `SMTP_PASS` blank in `backend/.env`, the worker automatically creates a new Ethereal test account on startup via `nodemailer.createTestAccount()` and logs the credentials:
@@ -307,139 +307,28 @@ npm run dev
 
 ---
 
-## 🚂 Railway Deployment Guide
+## ☁️ Render Deployment Guide (Free Tier)
 
-This repo now includes Railway config files that preserve the existing architecture:
+Everything — frontend, API, worker, PostgreSQL and Redis — is defined in [`render.yaml`](render.yaml) and runs on Render's free tier:
 
-- `frontend` → React/Vite frontend service
-- `backend` API → Express/TypeScript service
-- `backend` worker → dedicated BullMQ worker service
-- Railway PostgreSQL service
-- Railway Redis service
+| Service | Render type | URL |
+| :--- | :--- | :--- |
+| `outbox-scheduler-web` | Static site (React/Vite) | `https://outbox-scheduler-web.onrender.com` |
+| `outbox-scheduler-api` | Web service (Express API + BullMQ worker in one process) | `https://outbox-scheduler-api.onrender.com` |
+| `outbox-scheduler-redis` | Key Value (Redis, `noeviction`) | internal |
+| `outbox-scheduler-db` | PostgreSQL | internal |
 
-### 1. Create one Railway project with five services
+### Deploy
+1. Open **https://render.com/deploy?repo=https://github.com/chakradhar91085/outbox-email-scheduler** (or Dashboard → **New → Blueprint** → pick this repo).
+2. Fill in the secret values when prompted: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `RESEND_API_KEY`, `VITE_CLERK_PUBLISHABLE_KEY`.
+3. Click **Apply**. Prisma migrations run automatically on each API start (`prisma migrate deploy`).
 
-Add these services to the same Railway project:
-
-1. `Frontend`
-2. `API`
-3. `Worker`
-4. `Postgres`
-5. `Redis`
-
-### 2. Configure each code service
-
-#### Frontend service
-- Root Directory: `/frontend`
-- Config as Code path: `/frontend/railway.toml`
-- Public Networking: enabled
-
-Required variables:
-
-```env
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_or_test_...
-VITE_API_URL=https://${{API.RAILWAY_PUBLIC_DOMAIN}}
-```
-
-#### API service
-- Root Directory: `/backend`
-- Config as Code path: `/backend/railway.api.toml`
-- Public Networking: enabled
-
-Required variables:
-
-```env
-NODE_ENV=production
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-REDIS_URL=${{Redis.REDIS_URL}}
-FRONTEND_URL=https://${{Frontend.RAILWAY_PUBLIC_DOMAIN}}
-FRONTEND_URLS=http://localhost:5173,http://localhost:5174,https://${{Frontend.RAILWAY_PUBLIC_DOMAIN}}
-CLERK_PUBLISHABLE_KEY=pk_live_or_test_...
-CLERK_SECRET_KEY=sk_live_or_test_...
-EMAIL_PROVIDER=ethereal_or_resend
-SMTP_FROM=ReachInbox Scheduler <noreply@reachinbox.ai>
-```
-
-Email provider variables:
-
-```env
-# Only if Railway plan allows SMTP
-SMTP_HOST=smtp.ethereal.email
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=...
-SMTP_PASS=...
-
-# Only if using Resend over HTTPS
-RESEND_API_KEY=re_...
-```
-
-#### Worker service
-- Root Directory: `/backend`
-- Config as Code path: `/backend/railway.worker.toml`
-- Public Networking: disabled or private-only is fine
-
-Required variables:
-
-```env
-NODE_ENV=production
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-REDIS_URL=${{Redis.REDIS_URL}}
-WORKER_CONCURRENCY=5
-RATE_LIMIT_WINDOW_MS=3600000
-CLERK_PUBLISHABLE_KEY=pk_live_or_test_...
-CLERK_SECRET_KEY=sk_live_or_test_...
-EMAIL_PROVIDER=ethereal_or_resend
-SMTP_FROM=ReachInbox Scheduler <noreply@reachinbox.ai>
-```
-
-Add the same provider-specific variables used by the API service.
-
-### 3. Prisma migrations
-
-The API service now owns schema migrations:
-
-- Build step compiles the backend and generates Prisma client.
-- Pre-deploy step runs `npm run railway:migrate`.
-- Worker deploys do **not** run migrations.
-
-This keeps deployment order safe and avoids duplicate migration attempts from the worker service.
-
-### 4. SMTP decision point
-
-If your Railway account is on Free, Trial, or Hobby:
-
-- Do **not** deploy with `EMAIL_PROVIDER=ethereal`
-- Use `EMAIL_PROVIDER=resend`
-- Add `RESEND_API_KEY`
-- Set `SMTP_FROM` to a sender/domain verified in Resend
-
-If your Railway account is on Pro or above, you can keep `EMAIL_PROVIDER=ethereal`, but it is still better to treat Ethereal as demo-only and use an HTTPS provider for real production delivery.
-
-### 5. Clerk production setup
-
-In Clerk:
-
-- Add the Railway frontend URL as an allowed origin / redirect destination.
-- If you keep Vercel for any environment, keep that domain there too.
-- Keep the backend using the matching `CLERK_SECRET_KEY`.
-
-### 6. Local development stays the same
-
-The Railway files do not replace local development:
-
-- Docker Compose still runs PostgreSQL and Redis locally.
-- `npm run dev` still starts the Express API separately.
-- `npm run worker` still starts the BullMQ worker separately.
-- `npm run dev` in `frontend` still runs the Vite app locally.
-
-### 7. Verification checklist before deploy
-
-1. Build frontend locally with `npm run build`.
-2. Build backend locally with `npm run build`.
-3. Confirm `/health`, `/health/db`, and `/health/redis` succeed in the API service.
-4. Confirm the worker boots and initializes the configured email provider.
-5. Create a test campaign and verify emails move `PENDING -> PROCESSING -> SENT` (or `FAILED` with a clear provider error).
+### Free-tier notes
+- **Email**: free web services block outbound SMTP, so production uses `EMAIL_PROVIDER=resend` (HTTPS API). Without a verified domain, Resend only delivers to your own Resend account email.
+- **Worker**: free tier has no background workers, so `RUN_WORKER_IN_API=true` starts the BullMQ worker inside the API process. Locally, `npm run worker` still runs it separately.
+- **Sleep**: free web services sleep after 15 min idle; `.github/workflows/keep-alive.yml` pings `/health` every 10 min so scheduled jobs fire on time.
+- **Database**: free Render PostgreSQL expires 30 days after creation. For a permanent free DB, create one on [Neon](https://neon.tech) and replace `DATABASE_URL` on the API service.
+- **Service names**: if Render assigns a suffixed URL (name taken), update `FRONTEND_URL` / `VITE_API_URL` in the dashboard and the keep-alive URL.
 
 ---
 
